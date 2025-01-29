@@ -1,7 +1,7 @@
 export function openDatabase() {
     console.log('openDatabase');
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open('audioAppDB', 4);
+        const request = indexedDB.open('audioAppDB', 5);
 
         request.onupgradeneeded = (event) => {
             console.log('onupgradeneeded');
@@ -147,6 +147,11 @@ export function openDatabase() {
                     { id: 3, name: "Out of Scope" }
                 ];
                 initialLabels.forEach(label => labelStore.add(label));
+            }
+            if (!db.objectStoreNames.contains('testResults')) {
+                const testResultsStore = db.createObjectStore('testResults', { keyPath: 'id', autoIncrement: true });
+                testResultsStore.createIndex('clipId', 'clipId', { unique: false });
+                testResultsStore.createIndex('label', 'label', { unique: false });
             }
         };
 
@@ -360,6 +365,45 @@ export function deleteIntent(db, id) {
         const request = store.delete(id);
 
         request.onsuccess = () => resolve();
+        request.onerror = (event) => reject(event.target.error);
+    });
+}
+
+export function saveTestResult(db, clipId, result) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction('testResults', 'readwrite');
+        const store = transaction.objectStore('testResults');
+        const request = store.add({ clipId, result });
+
+        request.onsuccess = () => resolve();
+        request.onerror = (event) => reject(event.target.error);
+    });
+}
+
+export function getAllTestResults(db) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction('testResults', 'readonly');
+        const store = transaction.objectStore('testResults');
+        const request = store.getAll();
+
+        request.onsuccess = (event) => resolve(event.target.result);
+        request.onerror = (event) => reject(event.target.error);
+    });
+}
+
+export function updateAudioClipExpectedLabels(db, id, expectedLabels) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction('audioClips', 'readwrite');
+        const store = transaction.objectStore('audioClips');
+        const request = store.get(id);
+
+        request.onsuccess = (event) => {
+            const clip = event.target.result;
+            clip.expectedLabels = expectedLabels;
+            store.put(clip);
+            resolve();
+        };
+
         request.onerror = (event) => reject(event.target.error);
     });
 } 

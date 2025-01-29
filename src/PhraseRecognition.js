@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TextField, Button, List, ListItem, Typography, IconButton, Grid, Select, MenuItem, FormControl, InputLabel, Paper } from '@mui/material';
-import { Add, Send, Edit, PlayArrow, Delete, Train } from '@mui/icons-material';
-import { openDatabase, getAllAudioClips, saveStep, getAllSteps, updateStep, getAllIntents, saveIntent, deleteIntent, getAllLabels, saveLabel, deleteLabel } from './utils/indexedDB';
+import { TextField, Button, List, ListItem, Typography, IconButton, Grid, Select, MenuItem, FormControl, InputLabel, Paper, Checkbox, ListItemText } from '@mui/material';
+import { Add, Send, Edit, PlayArrow, Delete, Train, CheckCircle, Cancel } from '@mui/icons-material';
+import { openDatabase, getAllAudioClips, saveStep, getAllSteps, updateStep, getAllIntents, saveIntent, deleteIntent, getAllLabels, saveLabel, deleteLabel, saveTestResult, updateAudioClipExpectedLabels } from './utils/indexedDB';
 import { Box } from '@mui/material';
 const labelMap = {
     0: "Request for Name",
@@ -25,6 +25,7 @@ const PhraseRecognition = () => {
     const [warningColour, setWarningColour] = useState('red');
     const [threshold, setThreshold] = useState(0.8);
     const [testResults, setTestResults] = useState({});
+    const [pastedData, setPastedData] = useState('');
     const dbRef = useRef(null);
 
     useEffect(() => {
@@ -275,7 +276,8 @@ const PhraseRecognition = () => {
     };
 
     const addLabel = async () => {
-        await saveLabel(dbRef.current, newLabel);
+        const labelToSave = { ...newLabel, id: Number(newLabel.id) };
+        await saveLabel(dbRef.current, labelToSave);
         const storedLabels = await getAllLabels(dbRef.current);
         setLabels(storedLabels);
         setNewLabel({ id: '', name: '' });
@@ -293,8 +295,14 @@ const PhraseRecognition = () => {
     }, {});
 
     const getResultColor = (result) => {
-        if (result === 'Out of Scope') return 'red';
+        // if (result === 'Out of Scope') return 'red';
         return 'green';
+    };
+
+    const testAllAudioClips = async () => {
+        for (const clip of audioClips) {
+            await sendTranscriptToService(clip.response, clip.id);
+        }
     };
 
     const sendTranscriptToService = async (transcription, clipId) => {
@@ -320,17 +328,29 @@ const PhraseRecognition = () => {
             console.log('Service result:', result);
 
             const matchingIntents = [];
+            let highestConfidenceIntent = { label: '', confidence: 0 };
+
             result.results.forEach(segment => {
                 segment.intents.forEach(intent => {
                     if (intent.confidence >= threshold) {
-                        matchingIntents.push(intent.label);
+                        matchingIntents.push({ label: intent.label, confidence: intent.confidence });
+                    }
+                    if (intent.confidence > highestConfidenceIntent.confidence) {
+                        highestConfidenceIntent = { label: intent.label, confidence: intent.confidence };
                     }
                 });
             });
 
-            const matchStatus = matchingIntents.length > 0 ? matchingIntents.join(', ') : 'Out of Scope';
+            if (highestConfidenceIntent.label === 'Out of Scope' && !matchingIntents.some(intent => intent.label === 'Out of Scope')) {
+                matchingIntents.push(highestConfidenceIntent);
+            }
+
+            const matchStatus = matchingIntents.length > 0 && matchingIntents.map(intent => `${intent.label} (${intent.confidence.toFixed(2)})`).join(', ');
 
             setTestResults(prev => ({ ...prev, [clipId]: { result: matchStatus, startTime } })); // Store start time
+
+            // Save the result to the testResults table
+            await saveTestResult(dbRef.current, clipId, matchStatus);
         } catch (error) {
             console.error('Error sending transcript:', error);
         }
@@ -343,9 +363,9 @@ const PhraseRecognition = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
+                body: JSON.stringify({
                     data: intents,
-                    num_labels: new Set(intents.map(intent => intent.label)).size 
+                    num_labels: new Set(intents.map(intent => intent.label)).size
                 }),
             });
 
@@ -359,6 +379,36 @@ const PhraseRecognition = () => {
             setWarningColour('green');
         } catch (error) {
             console.error('Error initiating model training:', error);
+        }
+    };
+
+    const handleExpectedLabelsChange = (clipId, newLabels) => {
+        const updatedClips = audioClips.map(clip =>
+            clip.id === clipId ? { ...clip, expectedLabels: newLabels } : clip
+        );
+        setAudioClips(updatedClips);
+        updateAudioClipExpectedLabels(dbRef.current, clipId, newLabels);
+    };
+
+    const getResultIcon = (clipId) => {
+        const result = testResults[clipId]?.result;
+        const expectedLabels = audioClips.find(clip => clip.id === clipId)?.expectedLabels || [];
+        if (!result || expectedLabels.length === 0) return null;
+        const matchFound = expectedLabels.some(labelId => result.includes(labels.find(label => label.id === labelId)?.name));
+        return matchFound ? <CheckCircle style={{ color: 'green' }} /> : <Cancel style={{ color: 'red' }} />;
+    };
+
+    const handlePastedData = async () => {
+        try {
+            const parsedData = JSON.parse(pastedData);
+            for (const intent of parsedData) {
+                await saveIntent(dbRef.current, intent);
+            }
+            const storedIntents = await getAllIntents(dbRef.current);
+            setIntents(storedIntents);
+            setPastedData(''); // Clear the text area after processing
+        } catch (error) {
+            console.error('Error parsing or saving intents:', error);
         }
     };
 
@@ -461,6 +511,22 @@ const PhraseRecognition = () => {
                     </Grid>
                 </Grid>
                 <Grid item xs={6}>
+                    <Paper elevation={3} style={{ padding: '20px', marginBottom: '20px' }}>
+                        <Typography variant="h7" gutterBottom>Paste Intents Data</Typography>
+                        <TextField
+                            label="Paste JSON Data Here"
+                            variant="outlined"
+                            fullWidth
+                            multiline
+                            rows={10}
+                            value={pastedData}
+                            onChange={(e) => setPastedData(e.target.value)}
+                            style={{ margin: '10px' }}
+                        />
+                        <Button variant="contained" color="primary" onClick={handlePastedData} style={{ margin: '10px' }}>
+                            Save Intents
+                        </Button>
+                    </Paper>
                     <Paper elevation={3} style={{ padding: '20px' }}>
                         <Typography variant="h7" gutterBottom>Testing Area</Typography>
                         <TextField
@@ -475,55 +541,120 @@ const PhraseRecognition = () => {
                         <List style={{ maxHeight: '500px', overflowY: 'auto' }}>
                             {audioClips.map((clip, index) => (
                                 <ListItem key={index} style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                                        <Typography variant="caption" style={{ marginRight: '10px' }}>
-                                            {clip.name || `Audio Clip ${index + 1}`}
-                                        </Typography>
-                                        <IconButton color="primary" onClick={() => playAudioClip(clip)}>
-                                            <PlayArrow />
-                                        </IconButton>
-                                        <Typography variant="caption" style={{ marginLeft: '10px', flexGrow: 1 }}>
-                                            {clip.response || 'No transcript available'}
-                                        </Typography>
-                                        <Typography variant="caption" style={{ marginLeft: '10px', color: 'textSecondary' }}>
-                                            {new Date(clip.timestamp).toLocaleString()}
-                                        </Typography>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', marginTop: '5px' }}>
-                                        <IconButton
-                                            color="primary"
-                                            onClick={() => sendTranscriptToService(clip.response, clip.id)}
-                                            style={{ marginRight: '10px' }}
-                                        >
-                                            <Send />
-                                        </IconButton>
-                                        <Typography variant="caption" style={{ color: getResultColor(testResults[clip.id]?.result) }}>
-                                            {testResults[clip.id]?.result || 'Not Tested'}
-                                        </Typography>
-                                        <Typography variant="caption" style={{ marginLeft: '10px', color: 'textSecondary' }}>
-                                            {testResults[clip.id]?.startTime}
-                                        </Typography>
-                                    </div>
+                                    <Paper elevation={3} style={{ padding: '10px', marginBottom: '10px', width: '100%' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                            <Typography variant="caption" style={{ marginRight: '10px' }}>
+                                                {clip.name || `Audio Clip ${index + 1}`}
+                                            </Typography>
+                                            <IconButton color="primary" onClick={() => playAudioClip(clip)}>
+                                                <PlayArrow />
+                                            </IconButton>
+                                            <Typography variant="caption" style={{ marginLeft: '10px', flexGrow: 1 }}>
+                                                {clip.response || 'No transcript available'}
+                                            </Typography>
+                                        </div>
+                                        {/* <div style={{ display: 'flex', flexDirection: 'column', marginTop: '5px' }}>
+                                        {clip.expectedLabels?.map(labelId => {
+                                            const labelName = labels.find(label => label.id === labelId)?.name;
+                                            const isMatch = testResults[clip.id]?.result.includes(labelName);
+                                            return (
+                                                <Typography key={labelId} variant="caption" style={{ display: 'flex', alignItems: 'center', marginBottom: '2px' }}>
+                                                    {labelName}
+                                                    {isMatch && <CheckCircle style={{ color: 'green', marginLeft: '5px' }} />}
+                                                </Typography>
+                                            );
+                                        })}
+                                    </div> */}
+                                        <div style={{ display: 'flex', alignItems: 'center', marginTop: '5px' }}>
+                                            <FormControl variant="outlined" style={{ minWidth: 120, marginRight: '20px' }}>
+                                                <InputLabel sx={{ fontSize: '10px' }} >Expected Labels</InputLabel>
+                                                <Select
+                                                    sx={{ fontSize: '10px', width: "200px" }}
+                                                    multiple
+                                                    value={clip.expectedLabels || []}
+                                                    onChange={(e) => handleExpectedLabelsChange(clip.id, e.target.value)}
+                                                    label="Expected Labels"
+                                                    renderValue={() => 'Expected Labels'}
+                                                >
+                                                    {labels.map(label => (
+                                                        <MenuItem key={label.id} value={label.id}>
+                                                            <Checkbox checked={clip.expectedLabels?.indexOf(label.id) > -1} />
+                                                            <ListItemText sx={{
+                                                                '& .MuiListItemText-primary': { fontSize: '1.5rem' },
+                                                                '& .MuiListItemText-secondary': { fontSize: '10px' },
+                                                            }} secondary={label.name} />
+                                                        </MenuItem>
+                                                    ))}
+                                                </Select>
+                                            </FormControl>
+
+                                            <IconButton
+                                                color="primary"
+                                                onClick={() => sendTranscriptToService(clip.response, clip.id)}
+                                                style={{ marginRight: '10px' }}
+                                            >
+                                                <Send />
+                                            </IconButton>
+                                            <Typography variant="caption" style={{ color: getResultColor(testResults[clip.id]?.result) }}>
+                                                {testResults[clip.id]?.result || 'Not Tested'}
+                                            </Typography>
+                                            <Typography variant="caption" style={{ color: "black", marginLeft: '10px' }}>
+                                                {testResults[clip.id]?.startTime}
+                                            </Typography>
+                                            {/* <Typography variant="caption" style={{ marginLeft: '10px', color: 'textSecondary', display: 'flex', alignItems: 'center' }}>
+                                            {getResultIcon(clip.id)}
+                                        </Typography> */}
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', marginTop: '5px' }}>
+                                            {clip.expectedLabels?.map(labelId => {
+                                                const labelName = labels.find(label => label.id === labelId)?.name;
+                                                const result = testResults[clip.id]?.result;
+                                                const isMatch = result ? result.includes(labelName) : null;
+                                                return (
+                                                    <Typography key={labelId} variant="caption" style={{ display: 'flex', alignItems: 'center', marginRight: '10px', marginBottom: '2px' }}>
+                                                        {labelName}
+                                                        {isMatch === null ? (
+                                                            <CheckCircle style={{ color: 'grey', marginLeft: '5px' }} />
+                                                        ) : isMatch ? (
+                                                            <CheckCircle style={{ color: 'green', marginLeft: '5px' }} />
+                                                        ) : (
+                                                            <Cancel style={{ color: 'red', marginLeft: '5px' }} />
+                                                        )}
+                                                    </Typography>
+                                                );
+                                            })}
+                                        </div>
+                                    </Paper>
                                 </ListItem>
                             ))}
                         </List>
                     </Paper>
-               <Grid item xs={12}>
+                    <Grid item xs={12}>
+                        <Paper elevation={3} style={{ padding: '20px', marginTop: '20px' }}>
+                            <Typography variant="h7" gutterBottom>Model Training</Typography>
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                <IconButton color="primary" onClick={initiateModelTraining}>
+                                    <Train />
+                                </IconButton>
+                                <Typography variant="caption" style={{ marginLeft: '10px' }}>
+                                    Initiate Model Training
+                                </Typography>
+                            </div>
+                        </Paper>
+                    </Grid>
+                </Grid>
+                <Grid item xs={12}>
                     <Paper elevation={3} style={{ padding: '20px', marginTop: '20px' }}>
-                        <Typography variant="h7" gutterBottom>Model Training</Typography>
+                        <Typography variant="h7" gutterBottom>Batch Testing</Typography>
                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                            <IconButton color="primary" onClick={initiateModelTraining}>
-                                <Train />
-                            </IconButton>
-                            <Typography variant="caption" style={{ marginLeft: '10px' }}>
-                                Initiate Model Training
-                            </Typography>
+                            <Button variant="contained" color="primary" onClick={testAllAudioClips}>
+                                Test All Audio Clips
+                            </Button>
                         </div>
                     </Paper>
                 </Grid>
-                </Grid>
 
- 
+
 
             </Grid>
         </div>

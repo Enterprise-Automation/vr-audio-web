@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Button, List, ListItem, TextField, Typography, IconButton, Grid } from '@mui/material';
+import { Button, List, ListItem, TextField, Typography, IconButton, Grid, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
 import { Send, Delete, Download, Mic, MicOff, UploadFile, ClearAll, Audiotrack } from '@mui/icons-material';
 import useWebSocket from 'react-use-websocket';
-import { openDatabase, saveAudioClip, saveWebSocketResponse, getAllAudioClips, getAllWebSocketResponses, updateAudioClipName, deleteAudioClip, updateAudioClipWithResponse, clearWebSocketResponses } from './utils/indexedDB';
+import { openDatabase, saveAudioClip, saveWebSocketResponse, getAllAudioClips, getAllWebSocketResponses, updateAudioClipName, deleteAudioClip, updateAudioClipWithResponse, clearWebSocketResponses, getAllLabels, updateAudioClipExpectedLabels } from './utils/indexedDB';
 
 const AudioInterface = () => {
     const [audioClips, setAudioClips] = useState([]);
@@ -16,6 +16,7 @@ const AudioInterface = () => {
     const audioChunksRef = useRef([]);
     const dbRef = useRef(null);
     const responseEndRef = useRef(null);
+    const [labels, setLabels] = useState([]);
 
     useEffect(() => {
         const loadData = async () => {
@@ -23,13 +24,16 @@ const AudioInterface = () => {
             const audioClips = await getAllAudioClips(dbRef.current);
             const clipsWithUrls = audioClips.map(clip => ({
                 ...clip,
-                url: URL.createObjectURL(clip.blob)
+                url: URL.createObjectURL(clip.blob),
+                expectedLabel: clip.expectedLabel || ''
             }));
             setAudioClips(clipsWithUrls);
 
             const responses = await getAllWebSocketResponses(dbRef.current);
-
             setWebsocketResponse(responses.map(item => item.data));
+
+            const storedLabels = await getAllLabels(dbRef.current);
+            setLabels(storedLabels);
         };
 
         loadData();
@@ -68,7 +72,7 @@ const AudioInterface = () => {
         mediaRecorderRef.current.onstop = async () => {
             const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
             const audioUrl = URL.createObjectURL(audioBlob);
-            setAudioClips((prev) => [...prev, { url: audioUrl, blob: audioBlob, name: '' }]);
+            setAudioClips((prev) => [...prev, { url: audioUrl, blob: audioBlob, name: '', expectedLabel: '' }]);
             await saveAudioClip(dbRef.current, audioBlob);
             audioChunksRef.current = [];
         };
@@ -86,7 +90,7 @@ const AudioInterface = () => {
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             const audioUrl = URL.createObjectURL(file);
-            setAudioClips((prev) => [...prev, { url: audioUrl, blob: file, name: file.name }]);
+            setAudioClips((prev) => [...prev, { url: audioUrl, blob: file, name: file.name, expectedLabel: '' }]);
             await saveAudioClip(dbRef.current, file);
         }
     };
@@ -138,11 +142,19 @@ const AudioInterface = () => {
 
             const audioBlob = await response.blob();
             const audioUrl = URL.createObjectURL(audioBlob);
-            setAudioClips((prev) => [...prev, { url: audioUrl, blob: audioBlob, name: ''  }]);
+            setAudioClips((prev) => [...prev, { url: audioUrl, blob: audioBlob, name: '', expectedLabel: '' }]);
             await saveAudioClip(dbRef.current, audioBlob);
         } catch (error) {
             console.error('Error generating audio:', error);
         }
+    };
+
+    const handleExpectedLabelChange = (id, newLabel) => {
+        const updatedClips = audioClips.map(clip =>
+            clip.id === id ? { ...clip, expectedLabel: newLabel } : clip
+        );
+        setAudioClips(updatedClips);
+        updateAudioClipExpectedLabels(dbRef.current, id, newLabel);
     };
 
     return (
