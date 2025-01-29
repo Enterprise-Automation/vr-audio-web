@@ -326,7 +326,6 @@ const PhraseRecognition = () => {
 
             const result = await response.json();
             console.log('Service result:', result);
-
             const matchingIntents = [];
             let highestConfidenceIntent = { label: '', confidence: 0 };
 
@@ -341,7 +340,9 @@ const PhraseRecognition = () => {
                 });
             });
 
-            if (highestConfidenceIntent.label === 'Out of Scope' && !matchingIntents.some(intent => intent.label === 'Out of Scope')) {
+            if (matchingIntents.length === 0) {
+                matchingIntents.push({ label: 'Out of Scope', confidence: 1 });
+            } else if (highestConfidenceIntent.label === 'Out of Scope' && !matchingIntents.some(intent => intent.label === 'Out of Scope')) {
                 matchingIntents.push(highestConfidenceIntent);
             }
 
