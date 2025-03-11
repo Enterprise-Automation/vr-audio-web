@@ -3,10 +3,11 @@ import { Button, List, ListItem, TextField, Typography, IconButton, Grid, Select
 import { Send, Delete, Download, Mic, MicOff, UploadFile, ClearAll, Audiotrack } from '@mui/icons-material';
 import useWebSocket from 'react-use-websocket';
 import { openDatabase, saveAudioClip, saveWebSocketResponse, getAllAudioClips, getAllWebSocketResponses, updateAudioClipName, deleteAudioClip, updateAudioClipWithResponse, clearWebSocketResponses, getAllLabels, updateAudioClipExpectedLabels } from './utils/indexedDB';
+import { useDomain } from './contexts/DomainContext';
 
 const AudioInterface = () => {
+
     const [audioClips, setAudioClips] = useState([]);
-    const [websocketUrl, setWebsocketUrl] = useState('ws://localhost:8000/ws/process-interaction');
     const [isRecording, setIsRecording] = useState(false);
     const [websocketResponse, setWebsocketResponse] = useState([]);
     const [isSending, setIsSending] = useState(false);
@@ -17,7 +18,8 @@ const AudioInterface = () => {
     const dbRef = useRef(null);
     const responseEndRef = useRef(null);
     const [labels, setLabels] = useState([]);
-
+    const { domain } = useDomain();
+    const [websocketUrl, setWebsocketUrl] = useState(`ws://${domain}:8000/ws/process-interaction`);
     useEffect(() => {
         const loadData = async () => {
             dbRef.current = await openDatabase();
@@ -128,7 +130,7 @@ const AudioInterface = () => {
         if (!textInput.trim()) return;
 
         try {
-            const response = await fetch('/api/generate-audio', {
+            const response = await fetch(`http://${domain}:8000/generate-audio`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

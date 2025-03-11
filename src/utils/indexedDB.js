@@ -1,170 +1,328 @@
 export function openDatabase() {
     console.log('openDatabase');
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open('audioAppDB', 5);
+        const request = indexedDB.open('audioAppDB', 2);
 
         request.onupgradeneeded = (event) => {
             console.log('onupgradeneeded');
-            const db = event.target.result;
-            if (!db.objectStoreNames.contains('audioClips')) {
-                db.createObjectStore('audioClips', { keyPath: 'id', autoIncrement: true });
-            }
-            if (!db.objectStoreNames.contains('websocketResponses')) {
-                db.createObjectStore('websocketResponses', { keyPath: 'id', autoIncrement: true });
-            }
-            if (!db.objectStoreNames.contains('intents')) {
-                const intentStore = db.createObjectStore('intents', { keyPath: 'id', autoIncrement: true });
-                const initialIntents = [
-                    { "text": "What's your name?", "label": 0 },
-                    { "text": "May I know your name?", "label": 0 },
-                    { "text": "Could you tell me your name?", "label": 0 },
-                    { "text": "Who am I speaking with?", "label": 0 },
-                    { "text": "What should I call you?", "label": 0 },
-                    { "text": "Can you share your name with me?", "label": 0 },
-                    { "text": "How should I address you?", "label": 0 },
-                    { "text": "Your name, please?", "label": 0 },
-                    { "text": "Could you introduce yourself?", "label": 0 },
-                    { "text": "Can I get your name?", "label": 0 },
-                    { "text": "Do you mind telling me your name?", "label": 0 },
-                    { "text": "May I ask your name?", "label": 0 },
-                    { "text": "What is your full name?", "label": 0 },
-                    { "text": "How may I address you?", "label": 0 },
-                    { "text": "Who are you?", "label": 0 },
-                    { "text": "Let me know your name, please.", "label": 0 },
-                    { "text": "What do people call you?", "label": 0 },
-                    { "text": "What's your name again?", "label": 0 },
-                    { "text": "Remind me of your name?", "label": 0 },
-                    { "text": "Tell me your name, if you don't mind.", "label": 0 },
-                    { "text": "I'd like to know your name.", "label": 0 },
-                    { "text": "How do I refer to you?", "label": 0 },
-                    { "text": "Introduce yourself, please.", "label": 0 },
-                    { "text": "Could you provide your name?", "label": 0 },
-                    { "text": "Please tell me your name.", "label": 0 },
-                    { "text": "I'd love to know what your name is.", "label": 0 },
-                    { "text": "Who might you be?", "label": 0 },
-                    { "text": "Give me your name, if possible.", "label": 0 },
-                    { "text": "How do people usually address you?", "label": 0 },
-                    { "text": "Can I ask for your name?", "label": 0 },
-                    { "text": "What's your date of birth?", "label": 1 },
-                    { "text": "Can you tell me your birthdate?", "label": 1 },
-                    { "text": "May I know your date of birth?", "label": 1 },
-                    { "text": "When is your birthday?", "label": 1 },
-                    { "text": "Could you share your date of birth?", "label": 1 },
-                    { "text": "What day were you born?", "label": 1 },
-                    { "text": "Your date of birth, please?", "label": 1 },
-                    { "text": "On what date were you born?", "label": 1 },
-                    { "text": "When were you born?", "label": 1 },
-                    { "text": "Can I have your date of birth?", "label": 1 },
-                    { "text": "Could you provide your birthdate?", "label": 1 },
-                    { "text": "What's your DOB?", "label": 1 },
-                    { "text": "When is your birthdate?", "label": 1 },
-                    { "text": "Would you mind sharing your date of birth?", "label": 1 },
-                    { "text": "What year, month, and day were you born?", "label": 1 },
-                    { "text": "Can I get your date of birth, please?", "label": 1 },
-                    { "text": "Tell me your birthdate, if you don't mind.", "label": 1 },
-                    { "text": "I'd like to know your date of birth.", "label": 1 },
-                    { "text": "What's the date of your birth?", "label": 1 },
-                    { "text": "Which day is your birthday?", "label": 1 },
-                    { "text": "Could you let me know your date of birth?", "label": 1 },
-                    { "text": "Please share your birthdate with me.", "label": 1 },
-                    { "text": "What day and year were you born?", "label": 1 },
-                    { "text": "How old are you, and when were you born?", "label": 1 },
-                    { "text": "Can you confirm your date of birth?", "label": 1 },
-                    { "text": "When exactly were you born?", "label": 1 },
-                    { "text": "What's your birthday month and day?", "label": 1 },
-                    { "text": "Would you share your DOB?", "label": 1 },
-                    { "text": "Can I know the date of your birth?", "label": 1 },
-                    { "text": "Let me know your date of birth, please.", "label": 1 },
-                    { "text": "You're under arrest.", "label": 2 },
-                    { "text": "I am arresting you.", "label": 2 },
-                    { "text": "You're being placed under arrest.", "label": 2 },
-                    { "text": "I'm taking you into custody.", "label": 2 },
-                    { "text": "You are officially under arrest.", "label": 2 },
-                    { "text": "We're detaining you for now.", "label": 2 },
-                    { "text": "I'm placing you under arrest.", "label": 2 },
-                    { "text": "You're being arrested right now.", "label": 2 },
-                    { "text": "I have to arrest you.", "label": 2 },
-                    { "text": "We are taking you into custody.", "label": 2 },
-                    { "text": "By law, I'm arresting you.", "label": 2 },
-                    { "text": "You're being charged and arrested.", "label": 2 },
-                    { "text": "You're going to be taken into custody.", "label": 2 },
-                    { "text": "You'll be under arrest now.", "label": 2 },
-                    { "text": "I'm detaining you for arrest.", "label": 2 },
-                    { "text": "This is an arrest. You need to comply.", "label": 2 },
-                    { "text": "You are under arrest and must come with me.", "label": 2 },
-                    { "text": "I am charging and arresting you.", "label": 2 },
-                    { "text": "You'll need to cooperate as you're under arrest.", "label": 2 },
-                    { "text": "This is an official arrest.", "label": 2 },
-                    { "text": "You are being taken into custody immediately.", "label": 2 },
-                    { "text": "For your actions, I'm arresting you.", "label": 2 },
-                    { "text": "We're arresting you right now.", "label": 2 },
-                    { "text": "You'll need to come with us. You're under arrest.", "label": 2 },
-                    { "text": "You are being detained and arrested.", "label": 2 },
-                    { "text": "This is an arrest warrant in action.", "label": 2 },
-                    { "text": "I'm officially arresting you.", "label": 2 },
-                    { "text": "You are subject to arrest as of now.", "label": 2 },
-                    { "text": "You're being taken in under arrest.", "label": 2 },
-                    { "text": "By authority, I am arresting you now.", "label": 2 },
-                    { "text": "What's the weather like today?", "label": 3 },
-                    { "text": "Can you recommend a good book?", "label": 3 },
-                    { "text": "What time does the store close?", "label": 3 },
-                    { "text": "How do I bake a cake?", "label": 3 },
-                    { "text": "What's the capital of France?", "label": 3 },
-                    { "text": "Can you help me fix my car?", "label": 3 },
-                    { "text": "Who won the game last night?", "label": 3 },
-                    { "text": "How do I get to the nearest gas station?", "label": 3 },
-                    { "text": "What movies are playing today?", "label": 3 },
-                    { "text": "Do you know a good plumber?", "label": 3 },
-                    { "text": "What's your favorite color?", "label": 3 },
-                    { "text": "Tell me a joke.", "label": 3 },
-                    { "text": "Can you teach me how to knit?", "label": 3 },
-                    { "text": "What's 2 + 2?", "label": 3 },
-                    { "text": "Who is the president of the United States?", "label": 3 },
-                    { "text": "What is quantum physics?", "label": 3 },
-                    { "text": "Can I borrow your phone?", "label": 3 },
-                    { "text": "What is the meaning of life?", "label": 3 },
-                    { "text": "How do I install new software on my computer?", "label": 3 },
-                    { "text": "What are some good workout routines?", "label": 3 },
-                    { "text": "Do you know how to repair a bicycle?", "label": 3 },
-                    { "text": "What's the best restaurant in town?", "label": 3 },
-                    { "text": "Can you solve this math problem?", "label": 3 },
-                    { "text": "How do I change a flat tire?", "label": 3 },
-                    { "text": "What is the history of the Roman Empire?", "label": 3 },
-                    { "text": "Do you know any good jokes?", "label": 3 },
-                    { "text": "What's the tallest mountain in the world?", "label": 3 },
-                    { "text": "How do I start a garden?", "label": 3 },
-                    { "text": "What is your favorite hobby?", "label": 3 },
-                    { "text": "Can you explain the theory of relativity?", "label": 3 }
-                ];
-                initialIntents.forEach(intent => intentStore.add(intent));
-            }
-            if (!db.objectStoreNames.contains('labels')) {
-                const labelStore = db.createObjectStore('labels', { keyPath: 'id' });
-                const initialLabels = [
-                    { id: 0, name: "Request for Name" },
-                    { id: 1, name: "Request for DOB" },
-                    { id: 2, name: "Intent to Arrest" },
-                    { id: 3, name: "Out of Scope" }
-                ];
-                initialLabels.forEach(label => labelStore.add(label));
-            }
-            if (!db.objectStoreNames.contains('testResults')) {
-                const testResultsStore = db.createObjectStore('testResults', { keyPath: 'id', autoIncrement: true });
-                testResultsStore.createIndex('clipId', 'clipId', { unique: false });
-                testResultsStore.createIndex('label', 'label', { unique: false });
-            }
+            // const db = event.target.result;
+            // initDB(event);
+            // if (!db.objectStoreNames.contains('audioClips')) {
+            //     db.createObjectStore('audioClips', { keyPath: 'id', autoIncrement: true });
+            // }
+            // if (!db.objectStoreNames.contains('websocketResponses')) {
+            //     db.createObjectStore('websocketResponses', { keyPath: 'id', autoIncrement: true });
+            // }
+            // if (!db.objectStoreNames.contains('intents')) {
+            //     const intentStore = db.createObjectStore('intents', { keyPath: 'id', autoIncrement: true });
+            //     const initialIntents = [
+            //         { "text": "What's your name?", "label": 0 },
+            //         { "text": "May I know your name?", "label": 0 },
+            //         { "text": "Could you tell me your name?", "label": 0 },
+            //         { "text": "Who am I speaking with?", "label": 0 },
+            //         { "text": "What should I call you?", "label": 0 },
+            //         { "text": "Can you share your name with me?", "label": 0 },
+            //         { "text": "How should I address you?", "label": 0 },
+            //         { "text": "Your name, please?", "label": 0 },
+            //         { "text": "Could you introduce yourself?", "label": 0 },
+            //         { "text": "Can I get your name?", "label": 0 },
+            //         { "text": "Do you mind telling me your name?", "label": 0 },
+            //         { "text": "May I ask your name?", "label": 0 },
+            //         { "text": "What is your full name?", "label": 0 },
+            //         { "text": "How may I address you?", "label": 0 },
+            //         { "text": "Who are you?", "label": 0 },
+            //         { "text": "Let me know your name, please.", "label": 0 },
+            //         { "text": "What do people call you?", "label": 0 },
+            //         { "text": "What's your name again?", "label": 0 },
+            //         { "text": "Remind me of your name?", "label": 0 },
+            //         { "text": "Tell me your name, if you don't mind.", "label": 0 },
+            //         { "text": "I'd like to know your name.", "label": 0 },
+            //         { "text": "How do I refer to you?", "label": 0 },
+            //         { "text": "Introduce yourself, please.", "label": 0 },
+            //         { "text": "Could you provide your name?", "label": 0 },
+            //         { "text": "Please tell me your name.", "label": 0 },
+            //         { "text": "I'd love to know what your name is.", "label": 0 },
+            //         { "text": "Who might you be?", "label": 0 },
+            //         { "text": "Give me your name, if possible.", "label": 0 },
+            //         { "text": "How do people usually address you?", "label": 0 },
+            //         { "text": "Can I ask for your name?", "label": 0 },
+            //         { "text": "What's your date of birth?", "label": 1 },
+            //         { "text": "Can you tell me your birthdate?", "label": 1 },
+            //         { "text": "May I know your date of birth?", "label": 1 },
+            //         { "text": "When is your birthday?", "label": 1 },
+            //         { "text": "Could you share your date of birth?", "label": 1 },
+            //         { "text": "What day were you born?", "label": 1 },
+            //         { "text": "Your date of birth, please?", "label": 1 },
+            //         { "text": "On what date were you born?", "label": 1 },
+            //         { "text": "When were you born?", "label": 1 },
+            //         { "text": "Can I have your date of birth?", "label": 1 },
+            //         { "text": "Could you provide your birthdate?", "label": 1 },
+            //         { "text": "What's your DOB?", "label": 1 },
+            //         { "text": "When is your birthdate?", "label": 1 },
+            //         { "text": "Would you mind sharing your date of birth?", "label": 1 },
+            //         { "text": "What year, month, and day were you born?", "label": 1 },
+            //         { "text": "Can I get your date of birth, please?", "label": 1 },
+            //         { "text": "Tell me your birthdate, if you don't mind.", "label": 1 },
+            //         { "text": "I'd like to know your date of birth.", "label": 1 },
+            //         { "text": "What's the date of your birth?", "label": 1 },
+            //         { "text": "Which day is your birthday?", "label": 1 },
+            //         { "text": "Could you let me know your date of birth?", "label": 1 },
+            //         { "text": "Please share your birthdate with me.", "label": 1 },
+            //         { "text": "What day and year were you born?", "label": 1 },
+            //         { "text": "How old are you, and when were you born?", "label": 1 },
+            //         { "text": "Can you confirm your date of birth?", "label": 1 },
+            //         { "text": "When exactly were you born?", "label": 1 },
+            //         { "text": "What's your birthday month and day?", "label": 1 },
+            //         { "text": "Would you share your DOB?", "label": 1 },
+            //         { "text": "Can I know the date of your birth?", "label": 1 },
+            //         { "text": "Let me know your date of birth, please.", "label": 1 },
+            //         { "text": "You're under arrest.", "label": 2 },
+            //         { "text": "I am arresting you.", "label": 2 },
+            //         { "text": "You're being placed under arrest.", "label": 2 },
+            //         { "text": "I'm taking you into custody.", "label": 2 },
+            //         { "text": "You are officially under arrest.", "label": 2 },
+            //         { "text": "We're detaining you for now.", "label": 2 },
+            //         { "text": "I'm placing you under arrest.", "label": 2 },
+            //         { "text": "You're being arrested right now.", "label": 2 },
+            //         { "text": "I have to arrest you.", "label": 2 },
+            //         { "text": "We are taking you into custody.", "label": 2 },
+            //         { "text": "By law, I'm arresting you.", "label": 2 },
+            //         { "text": "You're being charged and arrested.", "label": 2 },
+            //         { "text": "You're going to be taken into custody.", "label": 2 },
+            //         { "text": "You'll be under arrest now.", "label": 2 },
+            //         { "text": "I'm detaining you for arrest.", "label": 2 },
+            //         { "text": "This is an arrest. You need to comply.", "label": 2 },
+            //         { "text": "You are under arrest and must come with me.", "label": 2 },
+            //         { "text": "I am charging and arresting you.", "label": 2 },
+            //         { "text": "You'll need to cooperate as you're under arrest.", "label": 2 },
+            //         { "text": "This is an official arrest.", "label": 2 },
+            //         { "text": "You are being taken into custody immediately.", "label": 2 },
+            //         { "text": "For your actions, I'm arresting you.", "label": 2 },
+            //         { "text": "We're arresting you right now.", "label": 2 },
+            //         { "text": "You'll need to come with us. You're under arrest.", "label": 2 },
+            //         { "text": "You are being detained and arrested.", "label": 2 },
+            //         { "text": "This is an arrest warrant in action.", "label": 2 },
+            //         { "text": "I'm officially arresting you.", "label": 2 },
+            //         { "text": "You are subject to arrest as of now.", "label": 2 },
+            //         { "text": "You're being taken in under arrest.", "label": 2 },
+            //         { "text": "By authority, I am arresting you now.", "label": 2 },
+            //         { "text": "What's the weather like today?", "label": 3 },
+            //         { "text": "Can you recommend a good book?", "label": 3 },
+            //         { "text": "What time does the store close?", "label": 3 },
+            //         { "text": "How do I bake a cake?", "label": 3 },
+            //         { "text": "What's the capital of France?", "label": 3 },
+            //         { "text": "Can you help me fix my car?", "label": 3 },
+            //         { "text": "Who won the game last night?", "label": 3 },
+            //         { "text": "How do I get to the nearest gas station?", "label": 3 },
+            //         { "text": "What movies are playing today?", "label": 3 },
+            //         { "text": "Do you know a good plumber?", "label": 3 },
+            //         { "text": "What's your favorite color?", "label": 3 },
+            //         { "text": "Tell me a joke.", "label": 3 },
+            //         { "text": "Can you teach me how to knit?", "label": 3 },
+            //         { "text": "What's 2 + 2?", "label": 3 },
+            //         { "text": "Who is the president of the United States?", "label": 3 },
+            //         { "text": "What is quantum physics?", "label": 3 },
+            //         { "text": "Can I borrow your phone?", "label": 3 },
+            //         { "text": "What is the meaning of life?", "label": 3 },
+            //         { "text": "How do I install new software on my computer?", "label": 3 },
+            //         { "text": "What are some good workout routines?", "label": 3 },
+            //         { "text": "Do you know how to repair a bicycle?", "label": 3 },
+            //         { "text": "What's the best restaurant in town?", "label": 3 },
+            //         { "text": "Can you solve this math problem?", "label": 3 },
+            //         { "text": "How do I change a flat tire?", "label": 3 },
+            //         { "text": "What is the history of the Roman Empire?", "label": 3 },
+            //         { "text": "Do you know any good jokes?", "label": 3 },
+            //         { "text": "What's the tallest mountain in the world?", "label": 3 },
+            //         { "text": "How do I start a garden?", "label": 3 },
+            //         { "text": "What is your favorite hobby?", "label": 3 },
+            //         { "text": "Can you explain the theory of relativity?", "label": 3 }
+            //     ];
+            //     initialIntents.forEach(intent => intentStore.add(intent));
+            // }
+            // if (!db.objectStoreNames.contains('labels')) {
+            //     const labelStore = db.createObjectStore('labels', { keyPath: 'id' });
+            //     const initialLabels = [
+            //         { id: 0, name: "Request for Name" },
+            //         { id: 1, name: "Request for DOB" },
+            //         { id: 2, name: "Intent to Arrest" },
+            //         { id: 3, name: "Out of Scope" }
+            //     ];
+            //     initialLabels.forEach(label => labelStore.add(label));
+            // }
+            // if (!db.objectStoreNames.contains('testResults')) {
+            //     const testResultsStore = db.createObjectStore('testResults', { keyPath: 'id', autoIncrement: true });
+            //     testResultsStore.createIndex('clipId', 'clipId', { unique: false });
+            //     testResultsStore.createIndex('label', 'label', { unique: false });
+            // }
+            initDB(event);
         };
 
         request.onsuccess = (event) => {
+            console.log('onsuccess');
             resolve(event.target.result);
         };
 
         request.onerror = (event) => {
+            console.log('onerror');
             reject(event.target.error);
         };
     });
 }
 
+function initDB(event) {
+    console.log('initDB');
+    const db = event.target.result;
+    if (!db.objectStoreNames.contains('audioClips')) {
+        db.createObjectStore('audioClips', { keyPath: 'id', autoIncrement: true });
+    }
+    if (!db.objectStoreNames.contains('websocketResponses')) {
+        db.createObjectStore('websocketResponses', { keyPath: 'id', autoIncrement: true });
+    }
+    if (!db.objectStoreNames.contains('intents')) {
+        const intentStore = db.createObjectStore('intents', { keyPath: 'id', autoIncrement: true });
+        const initialIntents = [
+            { "text": "What's your name?", "label": 0 },
+            { "text": "May I know your name?", "label": 0 },
+            { "text": "Could you tell me your name?", "label": 0 },
+            { "text": "Who am I speaking with?", "label": 0 },
+            { "text": "What should I call you?", "label": 0 },
+            { "text": "Can you share your name with me?", "label": 0 },
+            { "text": "How should I address you?", "label": 0 },
+            { "text": "Your name, please?", "label": 0 },
+            { "text": "Could you introduce yourself?", "label": 0 },
+            { "text": "Can I get your name?", "label": 0 },
+            { "text": "Do you mind telling me your name?", "label": 0 },
+            { "text": "May I ask your name?", "label": 0 },
+            { "text": "What is your full name?", "label": 0 },
+            { "text": "How may I address you?", "label": 0 },
+            { "text": "Who are you?", "label": 0 },
+            { "text": "Let me know your name, please.", "label": 0 },
+            { "text": "What do people call you?", "label": 0 },
+            { "text": "What's your name again?", "label": 0 },
+            { "text": "Remind me of your name?", "label": 0 },
+            { "text": "Tell me your name, if you don't mind.", "label": 0 },
+            { "text": "I'd like to know your name.", "label": 0 },
+            { "text": "How do I refer to you?", "label": 0 },
+            { "text": "Introduce yourself, please.", "label": 0 },
+            { "text": "Could you provide your name?", "label": 0 },
+            { "text": "Please tell me your name.", "label": 0 },
+            { "text": "I'd love to know what your name is.", "label": 0 },
+            { "text": "Who might you be?", "label": 0 },
+            { "text": "Give me your name, if possible.", "label": 0 },
+            { "text": "How do people usually address you?", "label": 0 },
+            { "text": "Can I ask for your name?", "label": 0 },
+            { "text": "What's your date of birth?", "label": 1 },
+            { "text": "Can you tell me your birthdate?", "label": 1 },
+            { "text": "May I know your date of birth?", "label": 1 },
+            { "text": "When is your birthday?", "label": 1 },
+            { "text": "Could you share your date of birth?", "label": 1 },
+            { "text": "What day were you born?", "label": 1 },
+            { "text": "Your date of birth, please?", "label": 1 },
+            { "text": "On what date were you born?", "label": 1 },
+            { "text": "When were you born?", "label": 1 },
+            { "text": "Can I have your date of birth?", "label": 1 },
+            { "text": "Could you provide your birthdate?", "label": 1 },
+            { "text": "What's your DOB?", "label": 1 },
+            { "text": "When is your birthdate?", "label": 1 },
+            { "text": "Would you mind sharing your date of birth?", "label": 1 },
+            { "text": "What year, month, and day were you born?", "label": 1 },
+            { "text": "Can I get your date of birth, please?", "label": 1 },
+            { "text": "Tell me your birthdate, if you don't mind.", "label": 1 },
+            { "text": "I'd like to know your date of birth.", "label": 1 },
+            { "text": "What's the date of your birth?", "label": 1 },
+            { "text": "Which day is your birthday?", "label": 1 },
+            { "text": "Could you let me know your date of birth?", "label": 1 },
+            { "text": "Please share your birthdate with me.", "label": 1 },
+            { "text": "What day and year were you born?", "label": 1 },
+            { "text": "How old are you, and when were you born?", "label": 1 },
+            { "text": "Can you confirm your date of birth?", "label": 1 },
+            { "text": "When exactly were you born?", "label": 1 },
+            { "text": "What's your birthday month and day?", "label": 1 },
+            { "text": "Would you share your DOB?", "label": 1 },
+            { "text": "Can I know the date of your birth?", "label": 1 },
+            { "text": "Let me know your date of birth, please.", "label": 1 },
+            { "text": "You're under arrest.", "label": 2 },
+            { "text": "I am arresting you.", "label": 2 },
+            { "text": "You're being placed under arrest.", "label": 2 },
+            { "text": "I'm taking you into custody.", "label": 2 },
+            { "text": "You are officially under arrest.", "label": 2 },
+            { "text": "We're detaining you for now.", "label": 2 },
+            { "text": "I'm placing you under arrest.", "label": 2 },
+            { "text": "You're being arrested right now.", "label": 2 },
+            { "text": "I have to arrest you.", "label": 2 },
+            { "text": "We are taking you into custody.", "label": 2 },
+            { "text": "By law, I'm arresting you.", "label": 2 },
+            { "text": "You're being charged and arrested.", "label": 2 },
+            { "text": "You're going to be taken into custody.", "label": 2 },
+            { "text": "You'll be under arrest now.", "label": 2 },
+            { "text": "I'm detaining you for arrest.", "label": 2 },
+            { "text": "This is an arrest. You need to comply.", "label": 2 },
+            { "text": "You are under arrest and must come with me.", "label": 2 },
+            { "text": "I am charging and arresting you.", "label": 2 },
+            { "text": "You'll need to cooperate as you're under arrest.", "label": 2 },
+            { "text": "This is an official arrest.", "label": 2 },
+            { "text": "You are being taken into custody immediately.", "label": 2 },
+            { "text": "For your actions, I'm arresting you.", "label": 2 },
+            { "text": "We're arresting you right now.", "label": 2 },
+            { "text": "You'll need to come with us. You're under arrest.", "label": 2 },
+            { "text": "You are being detained and arrested.", "label": 2 },
+            { "text": "This is an arrest warrant in action.", "label": 2 },
+            { "text": "I'm officially arresting you.", "label": 2 },
+            { "text": "You are subject to arrest as of now.", "label": 2 },
+            { "text": "You're being taken in under arrest.", "label": 2 },
+            { "text": "By authority, I am arresting you now.", "label": 2 },
+            { "text": "What's the weather like today?", "label": 3 },
+            { "text": "Can you recommend a good book?", "label": 3 },
+            { "text": "What time does the store close?", "label": 3 },
+            { "text": "How do I bake a cake?", "label": 3 },
+            { "text": "What's the capital of France?", "label": 3 },
+            { "text": "Can you help me fix my car?", "label": 3 },
+            { "text": "Who won the game last night?", "label": 3 },
+            { "text": "How do I get to the nearest gas station?", "label": 3 },
+            { "text": "What movies are playing today?", "label": 3 },
+            { "text": "Do you know a good plumber?", "label": 3 },
+            { "text": "What's your favorite color?", "label": 3 },
+            { "text": "Tell me a joke.", "label": 3 },
+            { "text": "Can you teach me how to knit?", "label": 3 },
+            { "text": "What's 2 + 2?", "label": 3 },
+            { "text": "Who is the president of the United States?", "label": 3 },
+            { "text": "What is quantum physics?", "label": 3 },
+            { "text": "Can I borrow your phone?", "label": 3 },
+            { "text": "What is the meaning of life?", "label": 3 },
+            { "text": "How do I install new software on my computer?", "label": 3 },
+            { "text": "What are some good workout routines?", "label": 3 },
+            { "text": "Do you know how to repair a bicycle?", "label": 3 },
+            { "text": "What's the best restaurant in town?", "label": 3 },
+            { "text": "Can you solve this math problem?", "label": 3 },
+            { "text": "How do I change a flat tire?", "label": 3 },
+            { "text": "What is the history of the Roman Empire?", "label": 3 },
+            { "text": "Do you know any good jokes?", "label": 3 },
+            { "text": "What's the tallest mountain in the world?", "label": 3 },
+            { "text": "How do I start a garden?", "label": 3 },
+            { "text": "What is your favorite hobby?", "label": 3 },
+            { "text": "Can you explain the theory of relativity?", "label": 3 }
+        ];
+        initialIntents.forEach(intent => intentStore.add(intent));
+    }
+    if (!db.objectStoreNames.contains('labels')) {
+        const labelStore = db.createObjectStore('labels', { keyPath: 'id' });
+        const initialLabels = [
+            { id: 0, name: "Request for Name" },
+            { id: 1, name: "Request for DOB" },
+            { id: 2, name: "Intent to Arrest" },
+            { id: 3, name: "Out of Scope" },
+            { id: 4, name: "Initiate Conversation" },
+            { id: 5, name: "De-escalate Situation" }
+        ];
+        initialLabels.forEach(label => labelStore.add(label));
+    }
+    if (!db.objectStoreNames.contains('testResults')) {
+        const testResultsStore = db.createObjectStore('testResults', { keyPath: 'id', autoIncrement: true });
+        testResultsStore.createIndex('clipId', 'clipId', { unique: false });
+        testResultsStore.createIndex('label', 'label', { unique: false });
+    }
+}
+window.initDB = initDB;
 export function saveAudioClip(db, audioBlob) {
     return new Promise((resolve, reject) => {
         const transaction = db.transaction('audioClips', 'readwrite');
@@ -303,36 +461,73 @@ export function updateStep(db, id, step) {
     });
 }
 
-export function getAllIntents(db) {
+export function getAllIntents(db, domain) {
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction('intents', 'readonly');
-        const store = transaction.objectStore('intents');
-        const request = store.getAll();
-
-        request.onsuccess = (event) => resolve(event.target.result);
-        request.onerror = (event) => reject(event.target.error);
+        fetch(`http://${domain}:8003/intent-training/`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch intents');
+                }
+                return response.json();
+            })
+            .then(data => {
+                resolve(data);
+            })
+            .catch(error => {
+                console.error('Error fetching intents:', error);
+                reject(error);
+            });
     });
 }
 
-export function saveIntent(db, intent) {
+export function saveIntent(db, intent, domain) {
+    console.log(intent);
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction('intents', 'readwrite');
-        const store = transaction.objectStore('intents');
-        const request = store.add(intent);
+        fetch(`http://${domain}:8003/intent-training/bulk`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(intent)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to save intents');
+                }
+                return response.json();
+            })
+        // const transaction = db.transaction('intents', 'readwrite');
+        // const store = transaction.objectStore('intents');
+        // const request = store.add(intent);
 
-        request.onsuccess = () => resolve();
-        request.onerror = (event) => reject(event.target.error);
+        // request.onsuccess = () => resolve();
+        // request.onerror = (event) => reject(event.target.error);
     });
 }
 
-export function getAllLabels(db) {
+export function getAllLabels(db, domain) {
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction('labels', 'readonly');
-        const store = transaction.objectStore('labels');
-        const request = store.getAll();
+        fetch(`http://${domain}:8003/intents/`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch labels');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Assuming the API returns an array of labels with id and name properties
+                resolve(data);
+            })
+            .catch(error => {
+                console.error('Error fetching labels:', error);
+                // Fallback to IndexedDB if API fails
+                const transaction = db.transaction('labels', 'readonly');
+                const store = transaction.objectStore('labels');
+                const request = store.getAll();
 
-        request.onsuccess = (event) => resolve(event.target.result);
-        request.onerror = (event) => reject(event.target.error);
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onerror = (event) => reject(event.target.error);
+            });
     });
 }
 
@@ -358,14 +553,46 @@ export function deleteLabel(db, id) {
     });
 }
 
-export function deleteIntent(db, id) {
+export function deleteIntent(db, id, domain) {
     return new Promise((resolve, reject) => {
-        const transaction = db.transaction('intents', 'readwrite');
-        const store = transaction.objectStore('intents');
-        const request = store.delete(id);
+        fetch(`http://${domain}:8003/intent-training/${id}`, {
+            method: 'DELETE'
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to delete intent');
+                }
+                resolve();
+            })
+            .catch(error => {
+                console.error('Error deleting intent:', error);
+                reject(error);
+            });
+    });
+}
 
-        request.onsuccess = () => resolve();
-        request.onerror = (event) => reject(event.target.error);
+export function updateIntent(db, intent, domain) {
+    return new Promise((resolve, reject) => {
+        fetch(`http://${domain}:8003/intent-training/${intent.id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(intent)
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update intent');
+                }
+                return response.json();
+            })
+            .then(data => {
+                resolve(data);
+            })
+            .catch(error => {
+                console.error('Error updating intent:', error);
+                reject(error);
+            });
     });
 }
 
@@ -406,4 +633,123 @@ export function updateAudioClipExpectedLabels(db, id, expectedLabels) {
 
         request.onerror = (event) => reject(event.target.error);
     });
-} 
+}
+
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+function base64ToBlob(base64) {
+    const byteString = atob(base64.split(',')[1]);
+    const mimeString = base64.split(',')[0].split(':')[1].split(';')[0];
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+    }
+    return new Blob([ab], { type: mimeString });
+}
+
+export function exportDB(db) {
+    return new Promise((resolve, reject) => {
+        const exportData = {};
+        const transaction = db.transaction(db.objectStoreNames, 'readonly');
+        const storeNames = Array.from(db.objectStoreNames);
+
+        transaction.onerror = (event) => {
+            reject(event.target.error);
+        };
+
+        const processStore = (storeIndex) => {
+            if (storeIndex < storeNames.length) {
+                const storeName = storeNames[storeIndex];
+                const store = transaction.objectStore(storeName);
+                const request = store.getAll();
+
+                request.onsuccess = (event) => {
+                    exportData[storeName] = event.target.result;
+                    processStore(storeIndex + 1);
+                };
+
+                request.onerror = (event) => {
+                    reject(event.target.error);
+                };
+            } else {
+                convertBlobsToBase64(exportData)
+                    .then(() => {
+                        resolve(exportData);
+                    })
+                    .catch(reject);
+            }
+        };
+
+        processStore(0);
+    });
+}
+
+function convertBlobsToBase64(data) {
+    return new Promise((resolve, reject) => {
+        const promises = [];
+
+        Object.values(data).forEach((storeData) => {
+            storeData.forEach((record) => {
+                if (record.blob) {
+                    promises.push(
+                        blobToBase64(record.blob).then((base64) => {
+                            record.blob = base64;
+                        })
+                    );
+                }
+            });
+        });
+
+        Promise.all(promises)
+            .then(() => {
+                resolve();
+            })
+            .catch(reject);
+    });
+}
+
+export function clearDB(db) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(db.objectStoreNames, 'readwrite');
+        transaction.onerror = (event) => {
+            reject(event.target.error);
+        };
+        transaction.oncomplete = () => {
+            resolve();
+        };
+        Array.from(db.objectStoreNames).forEach(storeName => {
+            transaction.objectStore(storeName).clear();
+        });
+    });
+}
+
+export function importData(db, data) {
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(db.objectStoreNames, 'readwrite');
+        transaction.onerror = (event) => {
+            reject(event.target.error);
+        };
+        transaction.oncomplete = () => {
+            resolve();
+        };
+        Object.entries(data).forEach(([storeName, storeData]) => {
+            const store = transaction.objectStore(storeName);
+            storeData.forEach(record => {
+                if (record.blob) {
+                    record.blob = base64ToBlob(record.blob);
+                }
+                store.add(record);
+            });
+        });
+    });
+}
+
+//

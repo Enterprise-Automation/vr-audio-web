@@ -7,6 +7,7 @@
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^6.4.1",
+    "@mui/lab": "^6.0.0-beta.30",
     "@mui/material": "^6.4.1",
     "cra-template": "1.2.0",
     "react": "^19.0.0",
@@ -14,6 +15,7 @@
     "react-router-dom": "^7.1.3",
     "react-scripts": "5.0.1",
     "react-use-websocket": "^4.11.1",
+    "reactflow": "^11.11.4",
     "vad": "^0.0.1",
     "web-vitals": "^4.2.4"
   },

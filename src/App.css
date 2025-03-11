@@ -16,7 +16,7 @@ code {
 .App {
   text-align: left;
   background-color: #1e1e1e;
-  color: #ffffff;
+  color: #69696973;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -70,6 +70,8 @@ code {
   display: flex;
   flex-direction: column;
 }
+
+
 
 .sidebar-item {
   margin-bottom: 15px;

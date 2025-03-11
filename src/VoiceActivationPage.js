@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Typography, List, ListItem } from '@mui/material';
 import useWebSocket from 'react-use-websocket';
-
+import { processIntents } from './PhraseRecognition';
 const VoiceActivationPage = () => {
     const [isListening, setIsListening] = useState(false);
     const [intents, setIntents] = useState([]);
@@ -11,17 +11,17 @@ const VoiceActivationPage = () => {
     const audioContextRef = useRef(null);
     const analyserRef = useRef(null);
     const dataArrayRef = useRef(null);
-    const silenceThreshold = 0.01;
-    const silenceDuration = 2000; // 1 second
+    const silenceThreshold = 0.02;
+    const silenceDuration = 1500; // 1.5 seconds
     let silenceStart = null;
 
     const { sendMessage } = useWebSocket(websocketUrl, {
         onOpen: () => console.log('WebSocket connection opened.'),
         onClose: () => console.log('WebSocket connection closed.'),
         onMessage: (message) => {
-            console.log('Received message:', message.data);
-            const intent = message.data;
-            setIntents((prev) => [...prev, intent]);
+            const intents = JSON.parse(message.data);
+            console.log('Received message:', intents.results);
+            // setIntents((prev) => [...prev, intents?.results?.map(result => result.intents.map(intent => intent.label).join(', '))]);
         },
         shouldReconnect: (closeEvent) => true,
     });
@@ -41,6 +41,7 @@ const VoiceActivationPage = () => {
             const source = audioContextRef.current.createMediaStreamSource(stream);
             analyserRef.current = audioContextRef.current.createAnalyser();
             analyserRef.current.fftSize = 2048;
+            analyserRef.current.smoothingTimeConstant = 0.8; // Smoothing to reduce noise
             source.connect(analyserRef.current);
             dataArrayRef.current = new Float32Array(analyserRef.current.fftSize);
             mediaRecorderRef.current = new MediaRecorder(stream);
@@ -62,20 +63,22 @@ const VoiceActivationPage = () => {
     const detectVoice = () => {
         analyserRef.current.getFloatTimeDomainData(dataArrayRef.current);
         const rms = Math.sqrt(dataArrayRef.current.reduce((sum, value) => sum + value * value, 0) / dataArrayRef.current.length);
-        //console.log('RMS:', rms);
+        //console.log('RMS:', rms, 'Threshold:', silenceThreshold);
 
         if (rms > silenceThreshold) {
             if (mediaRecorderRef.current.state !== 'recording') {
                 console.log('Voice detected, starting recording');
                 mediaRecorderRef.current.start();
-                silenceStart = null;
             }
-        } else if (mediaRecorderRef.current.state === 'recording') {
-            if (!silenceStart) {
-                silenceStart = Date.now();
-            } else if (Date.now() - silenceStart > silenceDuration) {
-                console.log('Silence detected, stopping recording');
-                mediaRecorderRef.current.stop();
+            silenceStart = null; // Reset silence start time if voice is detected
+        } else {
+            if (mediaRecorderRef.current.state === 'recording') {
+                if (!silenceStart) {
+                    silenceStart = Date.now();
+                } else if (Date.now() - silenceStart > silenceDuration) {
+                    console.log('Silence detected, stopping recording');
+                    mediaRecorderRef.current.stop();
+                }
             }
         }
 

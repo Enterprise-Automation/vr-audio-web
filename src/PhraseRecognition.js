@@ -3,11 +3,38 @@ import { TextField, Button, List, ListItem, Typography, IconButton, Grid, Select
 import { Add, Send, Edit, PlayArrow, Delete, Train, CheckCircle, Cancel } from '@mui/icons-material';
 import { openDatabase, getAllAudioClips, saveStep, getAllSteps, updateStep, getAllIntents, saveIntent, deleteIntent, getAllLabels, saveLabel, deleteLabel, saveTestResult, updateAudioClipExpectedLabels } from './utils/indexedDB';
 import { Box } from '@mui/material';
+import { useDomain } from './contexts/DomainContext';
 const labelMap = {
     0: "Request for Name",
     1: "Request for DOB",
     2: "Intent to Arrest",
-    3: "Out of Scope"
+    3: "Out of Scope",
+    4: "Initiate Conversation",
+    5: "De-escalate Situation"
+};
+
+export const processIntents = (results, threshold) => {
+    const matchingIntents = [];
+    let highestConfidenceIntent = { label: '', confidence: 0 };
+
+    results.forEach(segment => {
+        segment.intents.forEach(intent => {
+            if (intent.confidence >= threshold) {
+                matchingIntents.push({ label: intent.label, confidence: intent.confidence });
+            }
+            if (intent.confidence > highestConfidenceIntent.confidence) {
+                highestConfidenceIntent = { label: intent.label, confidence: intent.confidence };
+            }
+        });
+    });
+
+    if (matchingIntents.length === 0) {
+        matchingIntents.push({ label: 'Out of Scope', confidence: 1 });
+    } else if (highestConfidenceIntent.label === 'Out of Scope' && !matchingIntents.some(intent => intent.label === 'Out of Scope')) {
+        matchingIntents.push(highestConfidenceIntent);
+    }
+
+    return matchingIntents;
 };
 
 const PhraseRecognition = () => {
@@ -20,31 +47,32 @@ const PhraseRecognition = () => {
     const [currentIntent, setCurrentIntent] = useState({ text: '', label: 0 });
     const [selectedLabel, setSelectedLabel] = useState('');
     const [labels, setLabels] = useState([]);
-    const [newLabel, setNewLabel] = useState({ id: '', name: '' });
+    const [newLabel, setNewLabel] = useState({ intent_id: '', intent_name: '' });
     const [warningMessage, setWarningMessage] = useState('');
     const [warningColour, setWarningColour] = useState('red');
     const [threshold, setThreshold] = useState(0.8);
     const [testResults, setTestResults] = useState({});
     const [pastedData, setPastedData] = useState('');
     const dbRef = useRef(null);
-
+    const { domain } = useDomain();
     useEffect(() => {
         const loadData = async () => {
             dbRef.current = await openDatabase();
             const clips = await getAllAudioClips(dbRef.current);
             setAudioClips(clips);
 
-            const storedSteps = await getAllSteps(dbRef.current);
-            const initializedSteps = storedSteps.map(step => ({ ...step, matchedKeywords: [] }));
-            setSteps(initializedSteps);
+            // const storedSteps = await getAllSteps(dbRef.current);
+            // const initializedSteps = storedSteps.map(step => ({ ...step, matchedKeywords: [] }));
+            // setSteps(initializedSteps);
 
-            const storedIntents = await getAllIntents(dbRef.current);
+            const storedIntents = await getAllIntents(dbRef.current, domain);
             setIntents(storedIntents);
 
-            const storedLabels = await getAllLabels(dbRef.current);
+            const storedLabels = await getAllLabels(dbRef.current, domain);
+
             setLabels(storedLabels);
 
-            checkBalance(storedIntents);
+            // checkBalance(storedIntents);
         };
 
         loadData();
@@ -75,8 +103,8 @@ const PhraseRecognition = () => {
     };
 
     const removeIntent = async (id) => {
-        await deleteIntent(dbRef.current, id);
-        const storedIntents = await getAllIntents(dbRef.current);
+        await deleteIntent(dbRef.current, id, domain);
+        const storedIntents = await getAllIntents(dbRef.current, domain);
         setIntents(storedIntents);
         checkBalance(storedIntents);
     };
@@ -239,8 +267,8 @@ const PhraseRecognition = () => {
     };
 
     const addIntent = async (labelId) => {
-        await saveIntent(dbRef.current, { ...currentIntent, label: labelId });
-        const storedIntents = await getAllIntents(dbRef.current);
+        await saveIntent(dbRef.current, [{ ...currentIntent, label: labelId }], domain);
+        const storedIntents = await getAllIntents(dbRef.current, domain);
         setIntents(storedIntents);
         checkBalance(storedIntents);
         setCurrentIntent({ text: '', label: labelId });
@@ -276,7 +304,7 @@ const PhraseRecognition = () => {
     };
 
     const addLabel = async () => {
-        const labelToSave = { ...newLabel, id: Number(newLabel.id) };
+        const labelToSave = { ...newLabel, intent_id: Number(newLabel.intent_id) };
         await saveLabel(dbRef.current, labelToSave);
         const storedLabels = await getAllLabels(dbRef.current);
         setLabels(storedLabels);
@@ -305,11 +333,13 @@ const PhraseRecognition = () => {
         }
     };
 
+
+
     const sendTranscriptToService = async (transcription, clipId) => {
         const startTime = new Date().toLocaleString(); // Capture start time
 
         try {
-            const response = await fetch('http://127.0.0.1:8001/check_intents', {
+            const response = await fetch('http://localhost:8001/check_intents', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -326,27 +356,10 @@ const PhraseRecognition = () => {
 
             const result = await response.json();
             console.log('Service result:', result);
-            const matchingIntents = [];
-            let highestConfidenceIntent = { label: '', confidence: 0 };
 
-            result.results.forEach(segment => {
-                segment.intents.forEach(intent => {
-                    if (intent.confidence >= threshold) {
-                        matchingIntents.push({ label: intent.label, confidence: intent.confidence });
-                    }
-                    if (intent.confidence > highestConfidenceIntent.confidence) {
-                        highestConfidenceIntent = { label: intent.label, confidence: intent.confidence };
-                    }
-                });
-            });
+            const matchingIntents = processIntents(result.results, threshold);
 
-            if (matchingIntents.length === 0) {
-                matchingIntents.push({ label: 'Out of Scope', confidence: 1 });
-            } else if (highestConfidenceIntent.label === 'Out of Scope' && !matchingIntents.some(intent => intent.label === 'Out of Scope')) {
-                matchingIntents.push(highestConfidenceIntent);
-            }
-
-            const matchStatus = matchingIntents.length > 0 && matchingIntents.map(intent => `${intent.label} (${intent.confidence.toFixed(2)})`).join(', ');
+            const matchStatus = matchingIntents.length > 0 && matchingIntents.map(intent => `${labels.find(label => label.intent_id === intent.label)?.intent_name} (${intent.confidence.toFixed(2)})`).join(', ');
 
             setTestResults(prev => ({ ...prev, [clipId]: { result: matchStatus, startTime } })); // Store start time
 
@@ -359,15 +372,18 @@ const PhraseRecognition = () => {
 
     const initiateModelTraining = async () => {
         try {
-            const response = await fetch('http://127.0.0.1:8002/train', {
+            const response = await fetch('http://localhost:8003/train', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    data: intents,
-                    num_labels: new Set(intents.map(intent => intent.label)).size
-                }),
+                // body: JSON.stringify({
+                //     data: intents.map(intent => ({
+                //         text: intent.text,
+                //         label: intent.label
+                //     })),
+                //     num_labels: new Set(intents.map(intent => intent.label)).size
+                // }),
             });
 
             if (!response.ok) {
@@ -395,16 +411,17 @@ const PhraseRecognition = () => {
         const result = testResults[clipId]?.result;
         const expectedLabels = audioClips.find(clip => clip.id === clipId)?.expectedLabels || [];
         if (!result || expectedLabels.length === 0) return null;
-        const matchFound = expectedLabels.some(labelId => result.includes(labels.find(label => label.id === labelId)?.name));
+        const matchFound = expectedLabels.some(labelId => result.includes(labels.find(label => label.intent_id === labelId)?.intent_name));
         return matchFound ? <CheckCircle style={{ color: 'green' }} /> : <Cancel style={{ color: 'red' }} />;
     };
 
     const handlePastedData = async () => {
         try {
             const parsedData = JSON.parse(pastedData);
-            for (const intent of parsedData) {
-                await saveIntent(dbRef.current, intent);
-            }
+            console.log(parsedData);
+            //for (const intent of parsedData) {
+            await saveIntent(dbRef.current, parsedData, domain);
+            // }
             const storedIntents = await getAllIntents(dbRef.current);
             setIntents(storedIntents);
             setPastedData(''); // Clear the text area after processing
@@ -423,14 +440,14 @@ const PhraseRecognition = () => {
             <Grid container spacing={4}>
 
                 <Grid item xs={6}>
-                    <Paper elevation={3} style={{ padding: '20px', marginBottom: '20px' }}>
+                    {/* <Paper elevation={3} style={{ padding: '20px', marginBottom: '20px' }}>
                         <Typography variant="h7" gutterBottom>Manage Labels</Typography>
                         <TextField
                             label="Label ID"
                             variant="outlined"
                             fullWidth
-                            value={newLabel.id}
-                            onChange={(e) => handleNewLabelChange('id', e.target.value)}
+                            value={newLabel.intent_id}
+                            onChange={(e) => handleNewLabelChange('intent_id', e.target.value)}
                             style={{ margin: '10px' }}
                         />
                         <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
@@ -439,8 +456,8 @@ const PhraseRecognition = () => {
                                 label="Label Name"
                                 variant="outlined"
                                 fullWidth
-                                value={newLabel.name}
-                                onChange={(e) => handleNewLabelChange('name', e.target.value)}
+                                value={newLabel.intent_name}
+                                onChange={(e) => handleNewLabelChange('intent_name', e.target.value)}
                                 style={{ margin: '10px' }}
                             />
                             <IconButton color="primary" onClick={addLabel}>
@@ -454,7 +471,7 @@ const PhraseRecognition = () => {
                             {labels.map((label) => (
                                 <ListItem key={label.id}>
                                     <Typography variant="caption">
-                                        {label.name} (ID: {label.id})
+                                        {label.intent_name} (ID: {label.intent_id})
                                     </Typography>
                                     <IconButton color="error" onClick={() => removeLabel(label.id)}>
                                         <Delete />
@@ -462,6 +479,22 @@ const PhraseRecognition = () => {
                                 </ListItem>
                             ))}
                         </List>
+                    </Paper> */}
+                    <Paper elevation={3} style={{ padding: '20px', marginBottom: '20px' }}>
+                        <Typography variant="h7" gutterBottom>Paste Intents Data</Typography>
+                        <TextField
+                            label="Paste JSON Data Here"
+                            variant="outlined"
+                            fullWidth
+                            multiline
+                            rows={10}
+                            value={pastedData}
+                            onChange={(e) => setPastedData(e.target.value)}
+                            style={{ margin: '10px' }}
+                        />
+                        <Button variant="contained" color="primary" onClick={handlePastedData} style={{ margin: '10px' }}>
+                            Save Intents
+                        </Button>
                     </Paper>
                     <Grid item xs={12}>
                         <Paper elevation={3} style={{ padding: '20px' }}>
@@ -481,14 +514,12 @@ const PhraseRecognition = () => {
                             </div>
                             <FormControl fullWidth style={{ margin: '10px' }}>
                                 <Select
-                                    labelId="label-select"
-                                    value={selectedLabel}
                                     onChange={handleLabelChange}
                                 >
                                     <MenuItem value=""><em>All</em></MenuItem>
                                     {labels.map((label) => (
-                                        <MenuItem key={label.id} value={label.id}>
-                                            {label.name} ({labelCounts[label.id] || 0})
+                                        <MenuItem key={label.id} value={label.intent_id}>
+                                            {label.intent_name} ({labelCounts[label.intent_id] || 0})
                                         </MenuItem>
                                     ))}
                                 </Select>
@@ -500,7 +531,7 @@ const PhraseRecognition = () => {
                                 {filteredIntents.map((intent, index) => (
                                     <ListItem key={index}>
                                         <Typography variant="caption">
-                                            {intent.text} (Label: {intent.label} - {labels.find(l => l.id === intent.label)?.name || 'Unknown'})
+                                            {intent.text} (Label: {intent.label} - {labels.find(l => l.intent_id === intent.label)?.intent_name || 'Unknown'})
                                         </Typography>
                                         <IconButton color="error" onClick={() => removeIntent(intent.id)}>
                                             <Delete />
@@ -512,22 +543,7 @@ const PhraseRecognition = () => {
                     </Grid>
                 </Grid>
                 <Grid item xs={6}>
-                    <Paper elevation={3} style={{ padding: '20px', marginBottom: '20px' }}>
-                        <Typography variant="h7" gutterBottom>Paste Intents Data</Typography>
-                        <TextField
-                            label="Paste JSON Data Here"
-                            variant="outlined"
-                            fullWidth
-                            multiline
-                            rows={10}
-                            value={pastedData}
-                            onChange={(e) => setPastedData(e.target.value)}
-                            style={{ margin: '10px' }}
-                        />
-                        <Button variant="contained" color="primary" onClick={handlePastedData} style={{ margin: '10px' }}>
-                            Save Intents
-                        </Button>
-                    </Paper>
+
                     <Paper elevation={3} style={{ padding: '20px' }}>
                         <Typography variant="h7" gutterBottom>Testing Area</Typography>
                         <TextField
@@ -539,13 +555,15 @@ const PhraseRecognition = () => {
                             onChange={(e) => setThreshold(parseFloat(e.target.value))}
                             style={{ margin: '10px' }}
                         />
+                        <span>{audioClips.length}</span>
                         <List style={{ maxHeight: '500px', overflowY: 'auto' }}>
+
                             {audioClips.map((clip, index) => (
                                 <ListItem key={index} style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
                                     <Paper elevation={3} style={{ padding: '10px', marginBottom: '10px', width: '100%' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                                             <Typography variant="caption" style={{ marginRight: '10px' }}>
-                                                {clip.name || `Audio Clip ${index + 1}`}
+                                                ---{clip.name || `Audio Clip ${index + 1}`}
                                             </Typography>
                                             <IconButton color="primary" onClick={() => playAudioClip(clip)}>
                                                 <PlayArrow />
@@ -578,12 +596,12 @@ const PhraseRecognition = () => {
                                                     renderValue={() => 'Expected Labels'}
                                                 >
                                                     {labels.map(label => (
-                                                        <MenuItem key={label.id} value={label.id}>
-                                                            <Checkbox checked={clip.expectedLabels?.indexOf(label.id) > -1} />
+                                                        <MenuItem key={label.intent_id} value={label.intent_id}>
+                                                            <Checkbox checked={clip.expectedLabels?.indexOf(label.intent_id) > -1} />
                                                             <ListItemText sx={{
                                                                 '& .MuiListItemText-primary': { fontSize: '1.5rem' },
                                                                 '& .MuiListItemText-secondary': { fontSize: '10px' },
-                                                            }} secondary={label.name} />
+                                                            }} secondary={label.intent_name} />
                                                         </MenuItem>
                                                     ))}
                                                 </Select>
@@ -608,7 +626,7 @@ const PhraseRecognition = () => {
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', marginTop: '5px' }}>
                                             {clip.expectedLabels?.map(labelId => {
-                                                const labelName = labels.find(label => label.id === labelId)?.name;
+                                                const labelName = labels.find(label => label.intent_id === labelId)?.intent_name;
                                                 const result = testResults[clip.id]?.result;
                                                 const isMatch = result ? result.includes(labelName) : null;
                                                 return (
