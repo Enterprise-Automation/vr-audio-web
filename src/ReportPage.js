@@ -20,7 +20,11 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
-    DialogActions
+    DialogActions,
+    TextField,
+    Tooltip,
+    FormControlLabel,
+    Checkbox
 } from '@mui/material';
 import {
     Timeline,
@@ -39,85 +43,101 @@ import {
     Description,
     CalendarToday,
     CheckCircle,
-    PlayCircleOutline
+    PlayCircleOutline,
+    Comment,
+    ThumbUp,
+    ThumbDown,
+    Save,
+    Cancel
 } from '@mui/icons-material';
 import { useDomain } from './contexts/DomainContext';
 
 // Sample stub data for sessions
+const sampleSessionData = [
+    {
+        id: 1,
+        name: "Wanted on Warrant",
+        date: "2023-07-15",
+        startTime: "11:30 AM",
+        endTime: "11:45 AM",
+        duration: "0h 15m",
+        completionRate: 92,
+        status: "In Progress",
+        actor: "Dave Williamson",
+        thumbnailUrl: "/images/scr1.png", // Placeholder URL
+        intents: [
+            { id: 1, timestamp: "10:32 AM", name: "Request Status Update", response: "All units responding to location" },
+            { id: 2, timestamp: "10:38 AM", name: "Request Backup", response: "Additional units dispatched to your location" },
+            { id: 3, timestamp: "10:45 AM", name: "Medical Assistance", response: "Medical team is on the way" },
+            { id: 4, timestamp: "10:52 AM", name: "Situation Report", response: "Understood, continue monitoring" },
+            { id: 5, timestamp: "11:10 AM", name: "All Clear Signal", response: "Copy that, all clear received" },
+            { id: 6, timestamp: "11:25 AM", name: "Request Extraction", response: "Extraction team arriving in 5 minutes" },
+            { id: 7, timestamp: "10:32 AM", name: "Request Status Update", response: "All units responding to location" },
+            { id: 8, timestamp: "10:38 AM", name: "Request Backup", response: "Additional units dispatched to your location" },
+            { id: 9, timestamp: "10:45 AM", name: "Medical Assistance", response: "Medical team is on the way" },
+            { id: 10, timestamp: "10:52 AM", name: "Situation Report", response: "Understood, continue monitoring" },
+            { id: 11, timestamp: "11:10 AM", name: "All Clear Signal", response: "Copy that, all clear received" },
+            { id: 12, timestamp: "11:25 AM", name: "Request Extraction", response: "Extraction team arriving in 5 minutes" }
+        ]
+    },
+    {
+        id: 2,
+        name: "Customer Service Training",
+        date: "2023-07-18",
+        startTime: "2:00 PM",
+        endTime: "3:15 PM",
+        duration: "0h 15m",
+        completionRate: 87,
+        status: "Completed",
+        actor: "Support Agent",
+        thumbnailUrl: "/images/scr2.png", // Placeholder URL
+        intents: [
+            { id: 1, timestamp: "2:05 PM", name: "Greeting Customer", response: "Welcome to our support center" },
+            { id: 2, timestamp: "2:12 PM", name: "Problem Identification", response: "I understand your issue with the product" },
+            { id: 3, timestamp: "2:25 PM", name: "Troubleshooting Steps", response: "Let's try these steps to resolve your issue" },
+            { id: 4, timestamp: "2:40 PM", name: "Escalation Request", response: "I'll connect you with our specialist team" },
+            { id: 5, timestamp: "2:55 PM", name: "Resolution Confirmation", response: "Glad we could resolve your issue today" },
+            { id: 6, timestamp: "3:10 PM", name: "Farewell", response: "Thank you for contacting us" }
+        ]
+    },
+    {
+        id: 3,
+        name: "Medical Training Simulation",
+        date: "2023-07-20",
+        startTime: "9:00 AM",
+        endTime: "10:30 AM",
+        duration: "1h 30m",
+        completionRate: 95,
+        actor: "Medical Practitioner",
+        thumbnailUrl: "/images/scr3.png", // Placeholder URL
+        intents: [
+            { id: 1, timestamp: "9:05 AM", name: "Patient Assessment", response: "I'll need to check your vital signs" },
+            { id: 2, timestamp: "9:15 AM", name: "Symptom Inquiry", response: "Can you describe your symptoms?" },
+            { id: 3, timestamp: "9:30 AM", name: "Diagnosis Discussion", response: "Based on your symptoms, it appears to be..." },
+            { id: 4, timestamp: "9:45 AM", name: "Treatment Options", response: "We have several treatment options to consider" },
+            { id: 5, timestamp: "10:00 AM", name: "Medication Information", response: "This medication should be taken twice daily" },
+            { id: 6, timestamp: "10:15 AM", name: "Follow-up Planning", response: "Let's schedule a follow-up in two weeks" }
+        ]
+    }
+];
 
+// Update the intents in the sampleSessionData to include approval and comment fields
+sampleSessionData.forEach(session => {
+    session.intents = session.intents.map(intent => ({
+        ...intent,
+        approved: intent.approved !== undefined ? intent.approved : null, // Can be true, false, or null (pending)
+        comments: intent.comments || '',
+        commentEditing: false // For edit mode toggle
+    }));
+});
 
 const ReportPage = () => {
     const { domain } = useDomain();
-    const [sessions, setSessions] = useState( [
-        {
-            id: 1,
-            name: "Wanted on Warrant",
-            date: "2023-07-15",
-            startTime: "11:30 AM",
-            endTime: "11:45 AM",
-            duration: "0h 15m",
-            completionRate: 92,
-            status: "In Progress",
-            actor: "Dave Williamson",
-            thumbnailUrl: "https://i.imgur.com/XYZ123.jpg", // Placeholder URL
-            intents: [
-                { id: 1, timestamp: "10:32 AM", name: "Request Status Update", response: "All units responding to location" },
-                { id: 2, timestamp: "10:38 AM", name: "Request Backup", response: "Additional units dispatched to your location" },
-                { id: 3, timestamp: "10:45 AM", name: "Medical Assistance", response: "Medical team is on the way" },
-                { id: 4, timestamp: "10:52 AM", name: "Situation Report", response: "Understood, continue monitoring" },
-                { id: 5, timestamp: "11:10 AM", name: "All Clear Signal", response: "Copy that, all clear received" },
-                { id: 6, timestamp: "11:25 AM", name: "Request Extraction", response: "Extraction team arriving in 5 minutes" },
-                { id: 7, timestamp: "10:32 AM", name: "Request Status Update", response: "All units responding to location" },
-                { id: 8, timestamp: "10:38 AM", name: "Request Backup", response: "Additional units dispatched to your location" },
-                { id: 9, timestamp: "10:45 AM", name: "Medical Assistance", response: "Medical team is on the way" },
-                { id: 10, timestamp: "10:52 AM", name: "Situation Report", response: "Understood, continue monitoring" },
-                { id: 11, timestamp: "11:10 AM", name: "All Clear Signal", response: "Copy that, all clear received" },
-                { id: 12, timestamp: "11:25 AM", name: "Request Extraction", response: "Extraction team arriving in 5 minutes" }
-            ]
-        },
-        {
-            id: 2,
-            name: "Customer Service Training",
-            date: "2023-07-18",
-            startTime: "2:00 PM",
-            endTime: "3:15 PM",
-            duration: "0h 15m",
-            completionRate: 87,
-            status: "Completed",
-            actor: "Support Agent",
-            thumbnailUrl: "https://i.imgur.com/ABC456.jpg", // Placeholder URL
-            intents: [
-                { id: 1, timestamp: "2:05 PM", name: "Greeting Customer", response: "Welcome to our support center" },
-                { id: 2, timestamp: "2:12 PM", name: "Problem Identification", response: "I understand your issue with the product" },
-                { id: 3, timestamp: "2:25 PM", name: "Troubleshooting Steps", response: "Let's try these steps to resolve your issue" },
-                { id: 4, timestamp: "2:40 PM", name: "Escalation Request", response: "I'll connect you with our specialist team" },
-                { id: 5, timestamp: "2:55 PM", name: "Resolution Confirmation", response: "Glad we could resolve your issue today" },
-                { id: 6, timestamp: "3:10 PM", name: "Farewell", response: "Thank you for contacting us" }
-            ]
-        },
-        {
-            id: 3,
-            name: "Medical Training Simulation",
-            date: "2023-07-20",
-            startTime: "9:00 AM",
-            endTime: "10:30 AM",
-            duration: "1h 30m",
-            completionRate: 95,
-            actor: "Medical Practitioner",
-            thumbnailUrl: "https://i.imgur.com/DEF789.jpg", // Placeholder URL
-            intents: [
-                { id: 1, timestamp: "9:05 AM", name: "Patient Assessment", response: "I'll need to check your vital signs" },
-                { id: 2, timestamp: "9:15 AM", name: "Symptom Inquiry", response: "Can you describe your symptoms?" },
-                { id: 3, timestamp: "9:30 AM", name: "Diagnosis Discussion", response: "Based on your symptoms, it appears to be..." },
-                { id: 4, timestamp: "9:45 AM", name: "Treatment Options", response: "We have several treatment options to consider" },
-                { id: 5, timestamp: "10:00 AM", name: "Medication Information", response: "This medication should be taken twice daily" },
-                { id: 6, timestamp: "10:15 AM", name: "Follow-up Planning", response: "Let's schedule a follow-up in two weeks" }
-            ]
-        }
-    ])
+    const [sessions, setSessions] = useState(sampleSessionData);
     const [selectedSession, setSelectedSession] = useState(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [videoDialogOpen, setVideoDialogOpen] = useState(false);
+    const [currentIntent, setCurrentIntent] = useState(null);
 
 
     // In a real application, you would fetch data from the server
@@ -152,6 +172,141 @@ const ReportPage = () => {
 
     const handleVideoDialogClose = () => {
         setVideoDialogOpen(false);
+    };
+
+    // Function to handle intent approval
+    const handleApproval = (sessionId, intentId, isApproved) => {
+        // Create updated sessions with the approval change
+        const updatedSessions = sessions.map(session => {
+            if (session.id === sessionId) {
+                const updatedIntents = session.intents.map(intent => {
+                    if (intent.id === intentId) {
+                        return { ...intent, approved: isApproved };
+                    }
+                    return intent;
+                });
+                return { ...session, intents: updatedIntents };
+            }
+            return session;
+        });
+
+        setSessions(updatedSessions);
+
+        // If this is the selected session, update it too
+        if (selectedSession && selectedSession.id === sessionId) {
+            const updatedIntents = selectedSession.intents.map(intent => {
+                if (intent.id === intentId) {
+                    return { ...intent, approved: isApproved };
+                }
+                return intent;
+            });
+            setSelectedSession({ ...selectedSession, intents: updatedIntents });
+        }
+
+        // In a real app, we would save this to the backend
+        console.log(`Intent ${intentId} in session ${sessionId} approved: ${isApproved}`);
+    };
+
+    // Function to toggle comment editing
+    const toggleCommentEditing = (sessionId, intentId) => {
+        // Update sessions with comment editing
+        const updatedSessions = sessions.map(session => {
+            if (session.id === sessionId) {
+                const updatedIntents = session.intents.map(intent => {
+                    if (intent.id === intentId) {
+                        return { ...intent, commentEditing: !intent.commentEditing };
+                    }
+                    return { ...intent, commentEditing: false }; // Close any other open editors
+                });
+                return { ...session, intents: updatedIntents };
+            }
+            return session;
+        });
+
+        setSessions(updatedSessions);
+
+        // If this is the selected session, update it too
+        if (selectedSession && selectedSession.id === sessionId) {
+            const updatedIntents = selectedSession.intents.map(intent => {
+                if (intent.id === intentId) {
+                    return { ...intent, commentEditing: !intent.commentEditing };
+                }
+                return { ...intent, commentEditing: false }; // Close any other open editors
+            });
+            setSelectedSession({ ...selectedSession, intents: updatedIntents });
+        }
+    };
+
+    // Function to update a comment
+    const updateComment = (sessionId, intentId, comment) => {
+        // Create updated sessions with the comment change
+        const updatedSessions = sessions.map(session => {
+            if (session.id === sessionId) {
+                const updatedIntents = session.intents.map(intent => {
+                    if (intent.id === intentId) {
+                        return {
+                            ...intent,
+                            comments: comment,
+                            commentEditing: false // Close edit mode after saving
+                        };
+                    }
+                    return intent;
+                });
+                return { ...session, intents: updatedIntents };
+            }
+            return session;
+        });
+
+        setSessions(updatedSessions);
+
+        // If this is the selected session, update it too
+        if (selectedSession && selectedSession.id === sessionId) {
+            const updatedIntents = selectedSession.intents.map(intent => {
+                if (intent.id === intentId) {
+                    return {
+                        ...intent,
+                        comments: comment,
+                        commentEditing: false // Close edit mode after saving
+                    };
+                }
+                return intent;
+            });
+            setSelectedSession({ ...selectedSession, intents: updatedIntents });
+        }
+
+        // In a real app, we would save this to the backend
+        console.log(`Updated comment for intent ${intentId} in session ${sessionId}: ${comment}`);
+    };
+
+    // Function to handle comment change in the textfield
+    const handleCommentChange = (event, sessionId, intentId) => {
+        const comment = event.target.value;
+        // This only updates the UI temporarily while editing
+        const updatedSessions = sessions.map(session => {
+            if (session.id === sessionId) {
+                const updatedIntents = session.intents.map(intent => {
+                    if (intent.id === intentId) {
+                        return { ...intent, comments: comment };
+                    }
+                    return intent;
+                });
+                return { ...session, intents: updatedIntents };
+            }
+            return session;
+        });
+
+        setSessions(updatedSessions);
+
+        // If this is the selected session, update it too
+        if (selectedSession && selectedSession.id === sessionId) {
+            const updatedIntents = selectedSession.intents.map(intent => {
+                if (intent.id === intentId) {
+                    return { ...intent, comments: comment };
+                }
+                return intent;
+            });
+            setSelectedSession({ ...selectedSession, intents: updatedIntents });
+        }
     };
 
     return (
@@ -198,12 +353,34 @@ const ReportPage = () => {
                                         backgroundColor: 'rgba(0, 0, 0, 0.08)',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        justifyContent: 'center'
-
+                                        justifyContent: 'center',
+                                        backgroundImage: session.thumbnailUrl
+                                            ? `url(${session.thumbnailUrl})`
+                                            : 'none',
+                                        backgroundSize: 'cover',
+                                        backgroundPosition: 'center',
+                                        position: 'relative',
+                                        '&::after': session.thumbnailUrl ? {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '100%',
+                                            height: '100%',
+                                            backgroundColor: 'rgba(0, 0, 0, 0.3)', // Semi-transparent overlay
+                                            zIndex: 1
+                                        } : {}
                                     }}
                                 >
-                                    {/* Use a gray background with play icon as placeholder */}
-                                    <PlayCircleOutline sx={{ fontSize: 60, color: 'rgba(255, 255, 255, 0.8)' }} />
+                                    {/* Show play icon as an overlay for all thumbnails */}
+                                    {/* <PlayCircleOutline
+                                        sx={{
+                                            fontSize: 60,
+                                            color: 'rgba(255, 255, 255, 0.9)',
+                                            zIndex: 2,
+                                            position: 'relative'
+                                        }}
+                                    /> */}
                                 </CardMedia>
                                 <IconButton
                                     sx={{
@@ -213,7 +390,8 @@ const ReportPage = () => {
                                         backgroundColor: 'rgba(0, 0, 0, 0.6)',
                                         '&:hover': {
                                             backgroundColor: 'rgba(0, 0, 0, 0.8)'
-                                        }
+                                        },
+                                        zIndex: 3
                                     }}
                                     onClick={(e) => handlePlayVideo(e, session.id)}
                                 >
@@ -302,17 +480,118 @@ const ReportPage = () => {
                                         {intent.timestamp}
                                     </TimelineOppositeContent>
                                     <TimelineSeparator>
-                                        <TimelineDot color="primary" />
+                                        <TimelineDot
+                                            color={
+                                                intent.approved === true
+                                                    ? "success"
+                                                    : intent.approved === false
+                                                        ? "error"
+                                                        : "primary"
+                                            }
+                                        />
                                         <TimelineConnector />
                                     </TimelineSeparator>
                                     <TimelineContent>
-                                        <Paper elevation={3} sx={{ p: 2 }}>
-                                            <Typography variant="h6" component="span">
-                                                {intent.name}
-                                            </Typography>
-                                            <Typography>
+                                        <Paper
+                                            elevation={3}
+                                            sx={{
+                                                p: 2,
+                                                border: intent.approved === true
+                                                    ? '1px solid #4caf50'
+                                                    : intent.approved === false
+                                                        ? '1px solid #f44336'
+                                                        : 'none'
+                                            }}
+                                        >
+                                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                <Typography variant="h6" component="span">
+                                                    {intent.name}
+                                                </Typography>
+                                                <Box>
+                                                    <Tooltip title="Approve">
+                                                        <IconButton
+                                                            size="small"
+                                                            color={intent.approved === true ? "success" : "default"}
+                                                            onClick={() => handleApproval(selectedSession.id, intent.id, true)}
+                                                        >
+                                                            <ThumbUp />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Disapprove">
+                                                        <IconButton
+                                                            size="small"
+                                                            color={intent.approved === false ? "error" : "default"}
+                                                            onClick={() => handleApproval(selectedSession.id, intent.id, false)}
+                                                        >
+                                                            <ThumbDown />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </Box>
+                                            </Box>
+                                            <Typography sx={{ mb: 2 }}>
                                                 {intent.response}
                                             </Typography>
+
+                                            {/* Comments section */}
+                                            <Divider sx={{ my: 1 }} />
+                                            <Box sx={{ mt: 1 }}>
+                                                {intent.commentEditing ? (
+                                                    <Box>
+                                                        <TextField
+                                                            fullWidth
+                                                            multiline
+                                                            rows={2}
+                                                            placeholder="Add your comments here..."
+                                                            value={intent.comments}
+                                                            onChange={(e) => handleCommentChange(e, selectedSession.id, intent.id)}
+                                                            size="small"
+                                                            sx={{ mb: 1 }}
+                                                        />
+                                                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+                                                            <Button
+                                                                startIcon={<Save />}
+                                                                size="small"
+                                                                variant="contained"
+                                                                color="primary"
+                                                                onClick={() => updateComment(selectedSession.id, intent.id, intent.comments)}
+                                                            >
+                                                                Save
+                                                            </Button>
+                                                            <Button
+                                                                startIcon={<Cancel />}
+                                                                size="small"
+                                                                variant="outlined"
+                                                                onClick={() => toggleCommentEditing(selectedSession.id, intent.id)}
+                                                            >
+                                                                Cancel
+                                                            </Button>
+                                                        </Box>
+                                                    </Box>
+                                                ) : (
+                                                    <Box>
+                                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <Typography variant="subtitle2" color="text.secondary">
+                                                                Trainer Comments:
+                                                            </Typography>
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => toggleCommentEditing(selectedSession.id, intent.id)}
+                                                            >
+                                                                <Comment fontSize="small" />
+                                                            </IconButton>
+                                                        </Box>
+                                                        {intent.comments ? (
+                                                            <Typography variant="body2" sx={{ mt: 0.5, fontStyle: 'italic' }}>
+                                                                "{intent.comments}"
+                                                            </Typography>
+                                                        ) : (
+                                                            <Typography variant="body2" color="text.disabled" sx={{ mt: 0.5, fontStyle: 'italic' }}>
+                                                                No comments yet
+                                                            </Typography>
+                                                        )}
+                                                    </Box>
+                                                )}
+                                            </Box>
                                         </Paper>
                                     </TimelineContent>
                                 </TimelineItem>

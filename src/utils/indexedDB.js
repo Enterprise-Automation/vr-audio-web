@@ -463,7 +463,7 @@ export function updateStep(db, id, step) {
 
 export function getAllIntents(db, domain) {
     return new Promise((resolve, reject) => {
-        fetch(`http://${domain}:8003/intent-training/`)
+        fetch(`${domain}/intent-training/`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Failed to fetch intents');
@@ -483,7 +483,7 @@ export function getAllIntents(db, domain) {
 export function saveIntent(db, intent, domain) {
     console.log(intent);
     return new Promise((resolve, reject) => {
-        fetch(`http://${domain}:8003/intent-training/bulk`, {
+        fetch(`${domain}/intent-training/bulk`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -507,7 +507,7 @@ export function saveIntent(db, intent, domain) {
 
 export function getAllLabels(db, domain) {
     return new Promise((resolve, reject) => {
-        fetch(`http://${domain}:8003/intents/`)
+        fetch(`${domain}/intents/`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Failed to fetch labels');
@@ -555,7 +555,7 @@ export function deleteLabel(db, id) {
 
 export function deleteIntent(db, id, domain) {
     return new Promise((resolve, reject) => {
-        fetch(`http://${domain}:8003/intent-training/${id}`, {
+        fetch(`${domain}/intent-training/${id}`, {
             method: 'DELETE'
         })
             .then(response => {
@@ -573,7 +573,7 @@ export function deleteIntent(db, id, domain) {
 
 export function updateIntent(db, intent, domain) {
     return new Promise((resolve, reject) => {
-        fetch(`http://${domain}:8003/intent-training/${intent.id}`, {
+        fetch(`${domain}/intent-training/${intent.id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'

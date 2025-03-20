@@ -32,7 +32,8 @@ const IntentManagement = () => {
     const [newContextPrompt, setNewContextPrompt] = useState({ prompt: '' });
     const [newIntent, setNewIntent] = useState({
         intent_id: '',
-        intent_name: ''
+        intent_name: '',
+        intent_context: ''
     });
 
     // Edit dialog state
@@ -92,11 +93,11 @@ const IntentManagement = () => {
                 intentsRes,
                 responsesRes
             ] = await Promise.all([
-                fetch(`http://${domain}:8003/actors/`),
-                fetch(`http://${domain}:8003/intent-groups/`),
-                fetch(`http://${domain}:8003/context-prompts/`),
-                fetch(`http://${domain}:8003/intents/?include_all=true`),
-                fetch(`http://${domain}:8003/audio-responses/`)
+                fetch(`${domain}/actors/`),
+                fetch(`${domain}/intent-groups/`),
+                fetch(`${domain}/context-prompts/`),
+                fetch(`${domain}/intents/?include_all=true`),
+                fetch(`${domain}/audio-responses/`)
             ]);
 
             const [
@@ -134,7 +135,7 @@ const IntentManagement = () => {
             if (editingType === 'intents') {
                 await handleIntentEdit(editingItem);
             } else {
-                const response = await fetch(`http://${domain}:8003/${editingType}/${editingItem.id}`, {
+                const response = await fetch(`${domain}/${editingType}/${editingItem.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(editingItem)
@@ -157,7 +158,7 @@ const IntentManagement = () => {
 
     const handleDeleteConfirm = async () => {
         try {
-            const response = await fetch(`http://${domain}:8003/${deleteType}/${deleteItem}`, {
+            const response = await fetch(`${domain}/${deleteType}/${deleteItem}`, {
                 method: 'DELETE'
             });
             if (response.ok) {
@@ -178,7 +179,7 @@ const IntentManagement = () => {
     // CRUD operations for Actors
     const handleAddActor = async () => {
         try {
-            const response = await fetch(`http://${domain}:8003/actors/`, {
+            const response = await fetch(`${domain}/actors/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newActor)
@@ -195,7 +196,7 @@ const IntentManagement = () => {
     // CRUD operations for Intent Groups
     const handleAddIntentGroup = async () => {
         try {
-            const response = await fetch(`http://${domain}:8003/intent-groups/`, {
+            const response = await fetch(`${domain}/intent-groups/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newIntentGroup)
@@ -212,7 +213,7 @@ const IntentManagement = () => {
     // CRUD operations for Context Prompts
     const handleAddContextPrompt = async () => {
         try {
-            const response = await fetch(`http://${domain}:8003/context-prompts/`, {
+            const response = await fetch(`${domain}/context-prompts/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newContextPrompt)
@@ -232,7 +233,6 @@ const IntentManagement = () => {
             // If no intent_id is specified, find the highest existing ID and increment it
             let intentToAdd = { ...newIntent };
             if (!intentToAdd.intent_id || intentToAdd.intent_id === '') {
-
                 // Filter for valid IDs below 10000
                 const validIds = intents
                     .map(intent => intent.intent_id ? parseInt(intent.intent_id) : 0)
@@ -243,14 +243,14 @@ const IntentManagement = () => {
                 intentToAdd.intent_id = nextId.toString();
             }
 
-            const response = await fetch(`http://${domain}:8003/intents/`, {
+            const response = await fetch(`${domain}/intents/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(intentToAdd)
             });
 
             if (response.ok) {
-                setNewIntent({ intent_id: '', intent_name: '' });
+                setNewIntent({ intent_id: '', intent_name: '', intent_context: '' });
                 fetchAllData();
             }
         } catch (error) {
@@ -283,7 +283,7 @@ const IntentManagement = () => {
 
     const getAudioResponse = async (request) => {
         try {
-            const response = await fetch(`http://${domain}:8003/audio-response/`, {
+            const response = await fetch(`${domain}/audio-response/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -359,7 +359,7 @@ const IntentManagement = () => {
             await generateBatchResponses();
         } else {
             try {
-                const response = await fetch(`http://${domain}:8003/audio-response/`, {
+                const response = await fetch(`${domain}/audio-response/`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(testRequest)
@@ -383,7 +383,7 @@ const IntentManagement = () => {
     // Function to get all audio responses from the database
     const getAllAudioResponses = async (db, domain) => {
         try {
-            const response = await fetch(`http://${domain}:8003/audio-responses`);
+            const response = await fetch(`${domain}/audio-responses`);
             if (!response.ok) {
                 throw new Error(`Error: ${response.status}`);
             }
@@ -715,30 +715,51 @@ const IntentManagement = () => {
             <Grid item xs={12}>
                 <Paper elevation={3} style={{ padding: '20px', height: '600px', display: 'flex', flexDirection: 'column' }}>
                     <Typography variant="h4" style={{ color: '#d32f2f', marginBottom: '10px' }}>Intents</Typography>
-                    <div style={{ display: 'flex', marginBottom: '10px' }}>
-                        <TextField
-                            label="Intent ID"
-                            value={newIntent.intent_id}
-                            onChange={(e) => setNewIntent({ ...newIntent, intent_id: e.target.value })}
-                            style={{ marginRight: '10px', flexGrow: 1 }}
-                        />
-                        <TextField
-                            label="Intent Name"
-                            value={newIntent.intent_name}
-                            onChange={(e) => setNewIntent({ ...newIntent, intent_name: e.target.value })}
-                            style={{ marginRight: '10px', flexGrow: 1 }}
-                        />
-                        <Button variant="contained" onClick={handleAddIntent}>
-                            Add
-                        </Button>
+                    <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', marginBottom: '10px' }}>
+                            <TextField
+                                label="Intent ID"
+                                value={newIntent.intent_id}
+                                onChange={(e) => setNewIntent({ ...newIntent, intent_id: e.target.value })}
+                                style={{ marginRight: '10px', flexGrow: 1 }}
+                            />
+                            <TextField
+                                label="Intent Name"
+                                value={newIntent.intent_name}
+                                onChange={(e) => setNewIntent({ ...newIntent, intent_name: e.target.value })}
+                                style={{ marginRight: '10px', flexGrow: 1 }}
+                            />
+                        </div>
+                        <div style={{ display: 'flex' }}>
+                            <TextField
+                                label="Intent Context"
+                                value={newIntent.intent_context}
+                                onChange={(e) => setNewIntent({ ...newIntent, intent_context: e.target.value })}
+                                style={{ marginRight: '10px', flexGrow: 1 }}
+                                multiline
+                                rows={2}
+                            />
+                            <Button variant="contained" onClick={handleAddIntent} style={{ alignSelf: 'flex-end' }}>
+                                Add
+                            </Button>
+                        </div>
                     </div>
-                    <List style={{ overflowY: 'auto', flexGrow: 1, maxHeight: 'calc(100% - 100px)' }}>
+                    <List style={{ overflowY: 'auto', flexGrow: 1, maxHeight: 'calc(100% - 160px)' }}>
                         {intents.map((intent) => (
                             <ListItem key={intent.intent_id}>
-                                <Typography>
-                                    <span style={{ color: '#f44336' }}>{intent.intent_name}</span>
-                                    <span style={{ color: '#757575' }}> (ID: {intent.intent_id})</span>
-                                </Typography>
+                                <div style={{ flexGrow: 1 }}>
+                                    <Typography>
+                                        <span style={{ color: '#f44336' }}>{intent.intent_name}</span>
+                                        <span style={{ color: '#757575' }}> (ID: {intent.intent_id})</span>
+                                    </Typography>
+                                    {intent.intent_context && (
+                                        <Typography variant="body2" style={{ color: '#666', whiteSpace: 'pre-wrap' }}>
+                                            {intent.intent_context.length > 60
+                                                ? `${intent.intent_context.substring(0, 60)}...`
+                                                : intent.intent_context}
+                                        </Typography>
+                                    )}
+                                </div>
                                 <IconButton onClick={() => handleEdit(intent, 'intents')}>
                                     <Edit />
                                 </IconButton>
@@ -926,6 +947,15 @@ const IntentManagement = () => {
                                 value={editingItem?.intent_name || ''}
                                 onChange={(e) => setEditingItem({ ...editingItem, intent_name: e.target.value })}
                                 margin="normal"
+                            />
+                            <TextField
+                                fullWidth
+                                label="Intent Context"
+                                value={editingItem?.intent_context || ''}
+                                onChange={(e) => setEditingItem({ ...editingItem, intent_context: e.target.value })}
+                                margin="normal"
+                                multiline
+                                rows={3}
                             />
                         </>
                     )}

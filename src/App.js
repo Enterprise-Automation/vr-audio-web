@@ -11,7 +11,8 @@ import { Download, Upload, Brightness4, Brightness7 } from '@mui/icons-material'
 import { openDatabase, exportDB, clearDB, importData } from './utils/indexedDB';
 import { DomainProvider, useDomain } from './contexts/DomainContext';
 import ThemeProvider, { useTheme } from './contexts/ThemeContext';
-
+import ExampleApp from './WebRTC/ExampleApp';
+import MultiStreamApp from './WebRTC/MultiStreamApp';
 function App() {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [version, setVersion] = React.useState('1.0');
@@ -140,6 +141,16 @@ function App() {
             }}>
               <ListItemText primary="Session Reports" />
             </ListItem>
+            <ListItem button component="a" onClick={() => {
+              navigate('/webrtc');
+            }}>
+              <ListItemText primary="WebRTC" />
+            </ListItem>
+            <ListItem button component="a" onClick={() => {
+              navigate('/webrtc-multi');
+            }}>
+              <ListItemText primary="WebRTC Multi" />
+            </ListItem>
           </List>
         </Box>
       </Drawer>
@@ -155,6 +166,8 @@ function App() {
           <Route path="/intent-management" element={<IntentManagement />} />
           <Route path="/state-machine" element={<StateMachineVisualization />} />
           <Route path="/reports" element={<ReportPage />} />
+          <Route path="/webrtc" element={<ExampleApp />} />
+          <Route path="/webrtc-multi" element={<MultiStreamApp />} />
         </Routes>
       </Box>
     </Box>
